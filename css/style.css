@@ -1,0 +1,38 @@
+:root{--bg:#F2F5F7;--card:#fff;--ink:#14283A;--mut:#5B6B79;--line:#D5DDE3;--sea:#1B6B8A;--mango:#E3A008;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F1B26;--card:#172735;--ink:#E6EDF2;--mut:#93A4B3;--line:#2A3E4F}}
+:root[data-theme="dark"]{--bg:#0F1B26;--card:#172735;--ink:#E6EDF2;--mut:#93A4B3;--line:#2A3E4F}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Source Sans 3",system-ui,sans-serif}
+h1,h2,h3{font-family:"Bricolage Grotesque",system-ui,sans-serif;margin:12px 0 6px}h1{margin:0;font-size:1.5rem;font-weight:800}h2{font-size:1.2rem}h3{font-size:1.02rem}
+header{padding:16px 16px 8px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:end;justify-content:space-between}
+.date{font:800 1.25rem "Bricolage Grotesque",sans-serif;color:var(--sea)}
+.ctl,nav{display:flex;gap:6px;padding:0 16px 8px;flex-wrap:wrap}nav{flex-wrap:nowrap;overflow-x:auto}nav button{white-space:nowrap}
+button,select,input{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}button{cursor:pointer}
+button[aria-pressed=true],nav button[aria-selected=true]{background:var(--sea);color:#fff;border-color:var(--sea)}
+:focus-visible{outline:3px solid var(--mango);outline-offset:1px}
+main{padding:8px 16px 32px;max-width:1040px;margin:0 auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;cursor:pointer}
+.stat b{display:block;font:800 1.6rem "Bricolage Grotesque",sans-serif}.mut,.stat span{color:var(--mut);font-size:.9rem}
+ul{list-style:none;margin:0 0 14px;padding:0}
+li.ed{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 12px;background:var(--card);border:1px solid var(--line);border-bottom-width:0;cursor:pointer}
+li.ed:first-child{border-radius:8px 8px 0 0}li.ed:last-child{border-radius:0 0 8px 8px;border-bottom-width:1px}li.ed:only-child{border-radius:8px}
+li.ed:hover{background:color-mix(in srgb,var(--sea) 8%,var(--card))}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.88rem;color:var(--mut);margin-right:8px}
+.chip i,.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}.chip i{margin:0}
+.leg{display:flex;flex-wrap:wrap;margin-bottom:8px}
+.god{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;padding:10px;border:1px dashed var(--mango);border-radius:8px}
+.feed li{padding:6px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.mapwrap{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}@media(min-width:860px){.mapwrap{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+canvas{width:100%;height:auto;border:1px solid var(--line);border-radius:8px;cursor:pointer;background:#A9CBDD}
+.tbl{border-collapse:collapse;width:100%;margin-bottom:10px}.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:4px 8px;text-align:left}
+details{margin-bottom:10px}summary{cursor:pointer;padding:4px 0}
+dialog{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);width:min(420px,92vw);padding:16px}
+dialog label{display:block;margin:8px 0 2px;font-size:.88rem;color:var(--mut)}dialog input,dialog select{width:100%}.row{display:flex;gap:6px;margin-top:14px;flex-wrap:wrap}
+.report{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:14px}
+#rp{display:none}
+@media print{body>*:not(#rp){display:none!important}#rp{display:block!important;color:#000}.report{border:0;padding:0}:root{--card:#fff;--ink:#000;--line:#bbb;--mut:#444}body{background:#fff}}
+.meter{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:4px 0 8px}.meter div{height:100%;background:var(--sea)}
+.sub{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.sub button[aria-pressed=true]{background:var(--sea);color:#fff}
+dialog{max-height:90vh;overflow:auto}dialog label{display:block}dialog input[type=checkbox]{width:auto}
+canvas.paint{touch-action:none;cursor:crosshair}
