@@ -1,195 +1,240 @@
-const $=s=>document.querySelector(s);
-const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fmt=n=>n.toLocaleString('en-PH');
-let grp=[],S=null,tab='ov',cg='ch',speed=1,sel={p:-1,m:-1},mapMode='party',tool='sel',brush=2,rep=null,mf={ch:'all',mine:false},wz=null,painting=false,pdown=false,rq=0,last=performance.now(),acc=0,dirty=false;
-const MS={1:1000,3:333,10:100,30:33};
-const cols=P=>(P||S.parties).map(p=>p.color).concat('#9AA5AE');
-const chip=p=>p<0||!S.parties[p]?'':`<span class="chip"><i style="background:${S.parties[p].color}"></i>${esc(S.parties[p].name)}</span>`;
-const row=(p,a,b)=>`<li class="ed" tabindex="0" data-p="${p}"><b>${esc(a)}</b><span>${b}</span></li>`;
-const legend=(c,P)=>{P=P||S.parties;return `<div class="leg">${P.map((p,i)=>c[i]?`<span class="chip"><i style="background:${p.color}"></i>${esc(p.name)} ${c[i]}</span>`:'').join('')}${c[P.length]?`<span class="chip"><i style="background:#9AA5AE"></i>Ex officio ${c[P.length]}</span>`:''}</div>`};
-const seats=(t,c,P)=>`<h3>${t} (${c.reduce((a,b)=>a+b,0)})</h3>${hemi(c,cols(P))}${legend(c,P)}`;
-const get=p=>p.split('.').reduce((o,k)=>o[k],S);
-const word=i=>i<-.3?'progressive':i>.3?'conservative':'centrist';
-function dlg(html,f){const d=$('#dlg');d.innerHTML=html;d.showModal();const c=$('#cx');if(c)c.onclick=()=>d.close();if(f)f(d);return d}
-function provPanel(p){const pi=p.id,c=tally(p.sp.concat(p.exo)),cells=S.map.prov.reduce((a,v)=>a+(v==pi?1:0),0);
- return `<h2>${esc(p.name)} Province</h2><p class="mut">${esc(S.regs[p.reg].name)}${S.regs[p.reg].auto?' (autonomous region)':''}</p>
- <p>${seal(p.name,sdOf(p,'p'+p.id),84)} <button data-emb="p:${pi}">New seal</button></p><table class="tbl"><tr><td>Population</td><td>${fmt(p.pop)}</td></tr><tr><td>Registered voters (est.)</td><td>${fmt(Math.round(p.pop*.62))}</td></tr><tr><td>Income class</td><td>${p.cls}</td></tr><tr><td>Legislative districts</td><td>${p.dist}</td></tr><tr><td>Map area (cells)</td><td>${cells}</td></tr></table>
- <p><button data-p="provs.${pi}">Edit name, districts, or population</button></p>
- <ul>${row(`provs.${pi}.gov`,p.gov.name,'Governor '+chip(p.gov.party))}${row(`provs.${pi}.vg`,p.vg.name,'Vice Governor '+chip(p.vg.party))}</ul>
- ${seats('Sangguniang Panlalawigan',c)}
- <details data-k="sp${pi}"><summary>Board members</summary><ul>${p.sp.map((o,i)=>row(`provs.${pi}.sp.${i}`,o.name,chip(o.party))).join('')}${p.exo.map((o,i)=>row(`provs.${pi}.exo.${i}`,o.name,esc(o.role))).join('')}</ul></details>
- <details data-k="hr${pi}"><summary>House representatives</summary><ul>${S.house.map((r,i)=>r.prov==pi?row(`house.${i}`,r.name,`District ${r.d} `+chip(r.party)):'').join('')}</ul></details>
- ${p.hist&&p.hist.length?`<details data-k="hh${pi}"><summary>Past governors</summary><ul class="feed">${p.hist.map(h=>`<li>${esc(h)}</li>`).join('')}</ul></details>`:''}
- <h3>Cities and municipalities</h3><ul>${p.mun.map(id=>{const m=S.munis[id];return `<li class="ed" tabindex="0" data-m="${id}"><b>${esc(m.name)}</b><span>${m.huc?'Highly urbanized city':m.city?'City':'Municipality'}, ${fmt(m.pop)}, ${m.bn} barangays</span></li>`}).join('')}</ul>`}
-function muniPanel(m){const mi=m.id,c=tally(m.sb.concat(m.exo)),pb=tally(m.brgy.map(b=>b.pb));
- return `<p><button data-back="1">Back to ${esc(S.provs[m.prov].name)}</button></p><h2>${esc(m.name)} ${m.huc?'(Highly urbanized city)':m.city?'City':'Municipality'}</h2>
- <p>${seal(m.name,sdOf(m,'m'+m.id),84)} <button data-emb="m:${mi}">New seal</button></p><table class="tbl"><tr><td>Population</td><td>${fmt(m.pop)}</td></tr><tr><td>Registered voters (est.)</td><td>${fmt(Math.round(m.pop*.62))}</td></tr><tr><td>Barangays</td><td>${m.bn}</td></tr>${m.huc?'<tr><td>Status</td><td>Independent of provincial board supervision; 12 council seats</td></tr>':''}</table>
- <p><button data-p="munis.${mi}">Edit name, status, or province</button> <button data-act="addb">Add barangay</button></p>
- <ul>${row(`munis.${mi}.mayor`,m.mayor.name,'Mayor '+chip(m.mayor.party))}${row(`munis.${mi}.vm`,m.vm.name,'Vice Mayor '+chip(m.vm.party))}</ul>
- ${seats(m.city?'Sangguniang Panlungsod':'Sangguniang Bayan',c)}
- <details data-k="cm${mi}"><summary>Council members</summary><ul>${m.sb.map((o,i)=>row(`munis.${mi}.sb.${i}`,o.name,chip(o.party))).join('')}${m.exo.map((o,i)=>row(`munis.${mi}.exo.${i}`,o.name,esc(o.role))).join('')}</ul></details>
- ${m.hist&&m.hist.length?`<details data-k="mh${mi}"><summary>Past mayors</summary><ul class="feed">${m.hist.map(h=>`<li>${esc(h)}</li>`).join('')}</ul></details>`:''}
- ${seats('Punong barangays',pb.concat(0))}<h3>Barangays</h3>${m.brgy.map((b,i)=>`<details data-k="b${mi}-${i}"><summary>${esc(b.name)}: ${esc(b.pb.name)} ${chip(b.pb.party)}</summary><ul>${row(`munis.${mi}.brgy.${i}`,b.name,'Barangay name')}${row(`munis.${mi}.brgy.${i}.pb`,b.pb.name,'Punong Barangay '+chip(b.pb.party))}${b.kag.map((o,j)=>row(`munis.${mi}.brgy.${i}.kag.${j}`,o.name,'Kagawad '+chip(o.party))).join('')}${row(`munis.${mi}.brgy.${i}.sk`,b.sk.name,'SK Chairperson '+chip(b.sk.party))}</ul></details>`).join('')}`}
-function billHTML(b){const live=!!STN[b.st],sp=S.parties[b.spp],B=a=>`data-b="${b.id},${a}"`;
- return `<details data-k="bill${b.id}"><summary><b>${esc(b.t)}</b>${b.mine?' (yours)':''}: ${b.kind=='amend'?'amendment, ':''}${esc(STN[b.st]||b.st)}</summary>
- <p class="mut">Author ${esc(b.spn)} ${chip(b.spp)} Origin: ${b.orig=='H'?'House of Representatives':'Senate'}. Ideology ${b.i.toFixed(1)}.</p>
- <ul>${b.arts.map((a,k)=>`<li class="ed" style="cursor:default"><span>Art. ${k+1}: ${esc(a.t)} ${a.ok===true?'(approved)':a.ok===false?'(struck)':''}</span><span>${b.st=='H-2nd'?`<button ${B('art,'+k)}>Vote</button> <button ${B('force,'+k+',1')}>Approve</button> <button ${B('force,'+k+',0')}>Strike</button>`:''}</span></li>`).join('')}</ul>
- <div class="row" style="margin:6px 0">${live?(b.st=='H-2nd'?`<button ${B('adv')}>Close second reading</button>`:b.st=='Pres'||b.st=='Plebiscite'?`<button ${B('adv')}>${b.st=='Pres'?'Send to the President':'Hold plebiscite'}</button>`:`<button ${B('adv')}>Open vote</button><button ${B('sec')}>Secret vote</button>`):b.st=='Vetoed'&&!b.ov?`<button ${B('adv')}>Attempt veto override</button>`:''}${(b.st=='Law'||b.st=='Ratified'&&b.entr)&&Object.keys(b.e).length?`<button ${B('repeal')}>${b.entr?'Propose repeal amendment':'File repeal bill'}</button>`:''}<button data-p="bills.${S.bills.indexOf(b)}">Edit</button></div>
- <ul class="feed">${b.log.slice(0,6).map(l=>`<li>${esc(l)}</li>`).join('')}</ul></details>`}
-const lf=n=>{const s=String(n).trim(),i=s.indexOf(' ');return i<0?s:s.slice(i+1)+', '+s.slice(0,i)};
-const acr=p=>String(p.acr||p.name.replace(/[^A-Za-z]/g,'').slice(0,3)).toUpperCase();
-function reportHTML(R){const P=R.P,tot=a=>a.reduce((x,y)=>x+y,0)||1,cn=(n,p)=>`${esc(lf(n))} (${esc(acr(P[p]))})`,nf=x=>fmt(Math.round(x));
- const t=(title,c)=>`<h3>${title}</h3><table class="tbl"><tr><th>Party</th><th>Seats / offices</th><th>Share</th></tr>${P.map((p,i)=>c[i]?`<tr><td><i class="dot" style="background:${p.color}"></i>${esc(p.name)} (${esc(acr(p))})</td><td>${c[i]}</td><td>${(c[i]/tot(c)*100).toFixed(1)}%</td></tr>`:'').join('')}</table>`;
- const hm=(title,c)=>`<h3>${title}</h3>${hemi(c.concat(0),cols(P))}${legend(c.concat(0),P)}`;
- const rows=(title,L,first)=>L&&L.length?`<h3>${title}</h3><table class="tbl"><tr><th>${first}</th><th>Candidate (party)</th><th>Votes</th><th>Valid votes</th></tr>${L.map(x=>`<tr><td>${esc(x.loc)}</td><td>${cn(x.name,x.party)}</td><td>${nf(x.votes)}</td><td>${nf(x.valid)}</td></tr>`).join('')}</table>`:'';
- const head=`<div style="display:flex;gap:12px;align-items:center">${flag(S.flagSd,96)}<div><h2 style="margin:0">${esc(R.label)}</h2><p class="mut" style="margin:2px 0">${esc(R.d)}. Official results.</p></div></div>`;
- if(R.bske)return `<div class="report">${head}${hm('Punong barangays',R.pb)}${t('Punong barangay',R.pb)}${t('Sangguniang barangay members (kagawad)',R.kg)}${t('SK chairpersons',R.sk)}</div>`;
- const vt=(title,L,w)=>L?`<h3>${title}</h3><table class="tbl"><tr><th>Candidate (party)</th><th>Votes</th><th>Share</th></tr>${L.map((c,i)=>`<tr><td>${i==w?'<b>':''}${cn(c.name,c.party)}${i==w?' (elected)</b>':''}</td><td>${nf(c.votes)}</td><td>${(c.votes/R.valid*100).toFixed(2)}%</td></tr>`).join('')}</table>`:'';
- return `<div class="report">${head}
- ${R.reg?`<p>Registered voters: <b>${nf(R.reg)}</b>. Ballots cast: <b>${nf(R.ballots)}</b> (${(R.ballots/R.reg*100).toFixed(1)}%). Valid votes: <b>${nf(R.valid)}</b>.</p>`:''}
- ${R.pres?vt('President',R.cands&&R.cands[0].votes!=null?R.cands:null,R.win)+vt('Vice President',R.vc,R.vwin):''}
- ${R.senRace?`<h3>Senate race (top ${R.senRace.length})</h3><table class="tbl"><tr><th>Rank</th><th>Candidate (party)</th><th>Votes</th><th>Result</th></tr>${R.senRace.map((x,k)=>`<tr><td>${k+1}</td><td>${cn(x.name,x.party)}</td><td>${nf(x.votes)}</td><td>${x.won?'Elected':''}</td></tr>`).join('')}</table>`:`<h3>Senators elected (${R.sen.length})</h3><table class="tbl">${R.sen.map(s=>`<tr><td>${cn(s.name,s.party)}</td></tr>`).join('')}</table>`}
- ${hm('Senate after the election',R.senAll)}${hm('House of Representatives (districts and party-list)',R.house)}${t('House seats',R.house)}
- <h3>Party-list results</h3><table class="tbl"><tr><th>Group</th><th>Votes</th><th>Share</th><th>Seats</th></tr>${R.pl.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.votes!=null?nf(x.votes):'-'}</td><td>${x.pct!=null?x.pct.toFixed(2)+'%':'-'}</td><td>${x.n}</td></tr>`).join('')}</table>
- ${rows('Governors',R.govRows,'Province')}${rows('House district representatives',R.houseRows,'District')}${rows('Highly urbanized city mayors',R.hucRows,'City')}
- ${t('Governors by party',R.gov)}${t('Vice governors',R.vg)}${t('Sangguniang Panlalawigan seats',R.sp)}${t('City and municipal mayors',R.my)}${t('Highly urbanized city council seats',R.huc)}${t('Component city council seats',R.cc)}${t('Municipal council seats',R.mc)}</div>`}
-const sub=(arr,cur,attr)=>`<div class="sub">${arr.map(([k,n])=>`<button ${attr}="${k}" aria-pressed="${k==cur}">${n}</button>`).join('')}</div>`;
-function cgView(){
- if(cg=='ch'){const sp=S.house[S.speaker];return `<p class="mut">${inSession()?'Congress is in session.':'Congress is in recess until '+fday(openDay(yr(),S.y0))+'.'}</p><div class="god"><button data-act="spk">Elect Speaker</button><button data-act="imp">Impeach the President</button>${S.ml?'<button data-act="extml">Extend martial law</button><button data-act="revml">Move to revoke martial law</button>':'<button data-act="martial">Declare martial law</button>'}${S.crisis>0?'<button data-act="rally">Rally your lawmakers</button>':''}</div>
- <p class="mut">${S.ml?'Martial law is in force until '+fday(S.ml.end)+' (Art. VII Sec. 18). ':''}Senate President: ${S.senate[S.senPres]?esc(S.senate[S.senPres].name):'none'}.</p><p>Speaker: <b>${sp?esc(sp.name):'none'}</b> ${sp?chip(sp.party):''}${S.crisis>0?` <span class="mut">Crisis: ${S.crisis} days remain. Trust matters more for your bills.</span>`:''}</p>
- ${seats('House of Representatives',houseCounts().concat(0))}<p class="mut">${S.house.filter(r=>r.prov>=0).length} district seats and ${S.house.filter(r=>r.prov<0).length} party-list seats.</p>${seats('Senate',senCounts().concat(0))}`}
- if(cg=='mb'){const L=[];if(mf.ch!='S')S.house.forEach((m,i)=>L.push(['H',i,m]));if(mf.ch!='H')S.senate.forEach((m,i)=>L.push(['S',i,m]));
-  return `<div class="sub"><button data-mf="all" aria-pressed="${mf.ch=='all'}">All</button><button data-mf="H" aria-pressed="${mf.ch=='H'}">House</button><button data-mf="S" aria-pressed="${mf.ch=='S'}">Senate</button><button data-mf="mine" aria-pressed="${mf.mine}">Only my party</button></div><ul>${L.filter(x=>!mf.mine||x[2].party==S.player.party).map(([c,i,m])=>`<li class="ed" tabindex="0" data-mem="${c}:${i}"><b>${esc(m.name)}</b><span>${chip(m.party)}${word(m.ideo)}, trust ${Math.round(m.trust)}</span></li>`).join('')}</ul>`}
- if(cg=='cm')return `<p><button data-act="newcm">Create committee</button></p><ul>${S.committees.map((c,i)=>row('committees.'+i,c.name,`Focus: ${c.tag}. Chair: ${esc((S.house[c.chair]||{}).name||'none')}. ${c.mem.length} members`)).join('')}</ul>`;
- return `<p><button data-act="nbill">Submit a bill to The House</button> <button data-act="sbox">Bill Sandbox</button></p><ul class="feed" style="list-style:none">${S.bills.map(billHTML).join('')||'<li class="mut">No bills yet.</li>'}</ul>`}
-function view(){const P=S.parties;
- if(tab=='ov')return `<p>${flag(S.flagSd,150)} <button data-emb="flag">New flag</button></p><div class="grid">${Object.keys(SL).map(k=>`<div class="card stat" tabindex="0" data-p="stats"><b>${S.stats[k]}</b><span>${SL[k]}</span></div>`).join('')}</div><p class="mut">Next general election: ${fday(S.next)}. Next barangay and SK election: ${fday(S.nextB)}.</p>
- <div class="god"><select id="ev">${E.map((e,i)=>`<option value="${i}">${e[0]}</option>`).join('')}</select><button data-act="ev">Trigger event</button><select id="bt">${BT.map((b,i)=>`<option value="${i}">${b[0]}</option>`).join('')}</select><button data-act="bill">Draft bill</button></div>
- <h2>News</h2><ul class="feed">${S.news.map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`;
- if(tab=='mp')return `<div class="sub"><button data-mode="party" aria-pressed="${mapMode=='party'}">Governing party</button><button data-mode="pop" aria-pressed="${mapMode=='pop'}">Population</button><button data-tool="sel" aria-pressed="${tool=='sel'}">Select</button><button data-tool="paint" aria-pressed="${tool=='paint'}">Paint boundary</button><button data-tool="newm" aria-pressed="${tool=='newm'}">New municipality</button><button data-tool="group" aria-pressed="${tool=='group'}">Group into a province</button><select id="br"><option value="1" ${brush==1?'selected':''}>Brush 1</option><option value="2" ${brush==2?'selected':''}>Brush 2</option><option value="4" ${brush==4?'selected':''}>Brush 4</option></select><button data-back="all">All provinces</button><button data-act="remap">Upload map</button></div>
- <p class="mut">${tool=='paint'?'Select a municipality, then drag on the map to assign cells to it. Painting over another province moves the cells into the municipality\'s province.':tool=='newm'?'Click the map to carve a new municipality out of the province under the click.':tool=='group'?'Click municipalities to select them, then propose a new province.':'Click a province, then a municipality.'}</p>
- <div class="mapwrap"><canvas id="cv" width="520" height="760" class="${tool=='paint'?'paint':''}" role="img" aria-label="Map of the provinces"></canvas><div>${tool=='group'?groupPanel():sel.m>=0?muniPanel(S.munis[sel.m]):sel.p>=0?provPanel(S.provs[sel.p]):'<h2>Select a province</h2><p class="mut">Select a province to see who is seated, its population, districts, and municipalities. Select a municipality for its council and every barangay.</p>'+legend(tally(S.provs.map(p=>p.gov)).slice(0,P.length).concat(0))}</div></div>`;
- if(tab=='cg')return sub([['ch','Chamber'],['mb','Members'],['cm','Committees'],['bl','Bills']],cg,'data-cg')+cgView();
- if(tab=='gv'){return `<h2>Executive</h2><ul>${row('pres',S.pres.name,'President '+chip(S.pres.party))}${row('vp',S.vp.name,'Vice President '+chip(S.vp.party))}</ul><h3>Cabinet</h3><ul>${S.cabinet.map((x,i)=>row('cabinet.'+i,x.name,esc(x.role)+' '+chip(x.party))).join('')}</ul>
- <h2>Judiciary</h2><ul>${S.justices.map((j,i)=>row('justices.'+i,j.name,`${j.role}. Lean ${j.lean}`)).join('')}</ul><h2>Constitutional bodies</h2><ul>${S.bodies.map((x,i)=>row('bodies.'+i,x.name,esc(x.role))).join('')}</ul>
- <h2>Autonomous regions</h2>${Object.keys(S.autos).map(r=>{const x=S.autos[r],c=tally(x.parl,P.length+1);return `<h3>${esc(S.regs[r].name)}</h3><ul>${row(`autos.${r}.cm`,x.cm.name,'Chief Minister '+chip(x.cm.party))}</ul>${seats('Regional parliament',c)}<details data-k="ap${r}"><summary>Parliament members</summary><ul>${x.parl.map((m,i)=>row(`autos.${r}.parl.${i}`,m.name,chip(m.party))).join('')}</ul></details><p><button data-unauto="${r}">Revoke autonomy</button></p>`}).join('')}<p><button data-act="mkauto">Grant autonomy to a region</button></p>
- <h2>Highly urbanized cities</h2><ul>${S.munis.filter(m=>m.huc).map(m=>`<li class="ed" tabindex="0" data-go="${m.id}"><b>${esc(m.name)}</b><span>${esc(m.mayor.name)} ${chip(m.mayor.party)}</span></li>`).join('')||'<li class="ed" style="cursor:default">None yet. A city needs 200,000 residents.</li>'}</ul>
- <h2>Regional directors</h2><ul>${S.regs.map((r,i)=>row(`regs.${i}.rd`,r.rd.name,esc(r.name))).join('')}</ul>`}
- if(tab=='cn')return `<h2>The Constitution</h2><p class="mut">Amendments follow Art. XVII: Congress, voting as a constituent assembly, proposes an amendment by the required share of all its members, then voters ratify it in a plebiscite. Use Propose, or write a bill with constitutional articles under Congress, Bills.</p>
- <table class="tbl"><tr><th>Provision</th><th>Basis</th><th>Value</th><th></th></tr>${Object.keys(CONL).map(k=>`<tr><td>${CONL[k][0]}</td><td>${CONL[k][1]}</td><td>${S.con[k]}</td><td><button data-prop="${k}">Propose</button></td></tr>`).join('')}</table>
- <h3>Provisions the simulation enforces</h3><ul class="feed">${MECH.map(x=>`<li>${esc(x)}</li>`).join('')}</ul><div class="god"><button data-p="con">Edit directly (sandbox override)</button></div><h3>Articles</h3><ol>${ARTS.map(a=>`<li>${a}</li>`).join('')}</ol>`;
- if(tab=='el')return `<h2>Elections</h2><p class="mut">National and local elections are held on the second Monday of May. Barangay and SK elections are held in late October. Use Export PDF, then choose Save as PDF in the print dialog.</p><ul>${S.elections.map(r=>`<li class="ed" style="cursor:default"><b>${esc(r.label)}</b><span><button data-view="${r.id}">View</button> <button data-pdf="${r.id}">Export PDF</button></span></li>`).join('')||'<li class="ed" style="cursor:default">No elections yet.</li>'}</ul>${rep?reportHTML(rep):''}`;
- if(tab=='pa')return `<h2>Political parties</h2><ul>${P.map((p,i)=>row('parties.'+i,p.name,`<span class="chip"><i style="background:${p.color}"></i>Ideology ${p.ideo}, popularity ${p.pop}</span>`)).join('')}</ul>
- <h2>Party-list groups</h2><p class="mut">Seats follow RA 7941: groups at or above ${S.con.plThreshold}% of the vote win a seat, additional seats are shared in proportion to votes, and no group exceeds ${S.con.plCap}. Party-list seats total ${S.con.plShare}% of the House. Each group votes with its affiliated party.</p>
- <ul>${S.plg.map((g,i)=>row('plg.'+i,g.name,`${esc(g.sector)}, vote weight ${g.pop}, <b>${S.pls[i]} seat(s)</b> ${chip(g.party)}`)).join('')}</ul><div class="god"><button data-act="addpl">Add party-list group</button><button data-act="recpl">Recompute seats</button></div>`;
- const lg=S.munis.length,ci=S.munis.filter(m=>m.city).length,bg=S.munis.reduce((a,m)=>a+m.bn,0);
- return `<h2>This world</h2><p>${S.provs.length} provinces, ${ci} cities, ${lg-ci} municipalities, ${fmt(bg)} barangays.</p><h2>Philippine government positions</h2><table class="tbl"><tr><th>Level</th><th>Office</th><th>Seats</th><th>Basis</th></tr>${POS.map(r=>`<tr>${r.map(x=>`<td>${esc(x)}</td>`).join('')}</tr>`).join('')}</table><p class="mut">Drawn from the 1987 Constitution, the Local Government Code, and RA 8553. Confirm current figures before citing.</p>`}
-const TABS=[['ov','Overview'],['mp','Map'],['cg','Congress'],['gv','Government'],['cn','Constitution'],['el','Elections'],['pa','Parties'],['po','Positions']];
-function render(){
- if(!S){$('#main').innerHTML=`<div class="report"><h2>Start a world</h2><div class="row"><button data-act="wiz">Configure a new world</button><button data-act="quick">Quick start</button><button data-act="saves">Load a save</button></div></div>`;return}
- $('#date').textContent=dstr();$('#nav').innerHTML=TABS.map(([k,n])=>`<button role="tab" aria-selected="${k==tab}" data-tab="${k}">${n}</button>`).join('');
- const open=new Set([...document.querySelectorAll('#main details[open]')].map(d=>d.dataset.k)),ev=$('#ev'),bt=$('#bt'),ev0=ev&&ev.value,bt0=bt&&bt.value;
- $('#main').innerHTML=view();document.querySelectorAll('#main details').forEach(d=>{if(open.has(d.dataset.k))d.open=true});
- if($('#ev')&&ev0)$('#ev').value=ev0;if($('#bt')&&bt0)$('#bt').value=bt0;
- const cv=$('#cv');if(cv&&cv.tagName=='CANVAS'){drawMap(cv);const br=$('#br');if(br)br.onchange=e=>{brush=+e.target.value};
-  cv.onpointerdown=e=>{if(tool=='paint'&&sel.m>=0){painting=true;paintAt(e)}};cv.onpointermove=e=>{if(painting)paintAt(e)};cv.onclick=e=>{if(tool!='paint')mapClick(e)}}}
-function ctl(){$('#ctl').innerHTML=[[0,'Pause'],[1,'1x'],[3,'3x'],[10,'10x'],[30,'30x']].map(([n,l])=>`<button aria-pressed="${speed==n}" data-speed="${n}">${l}</button>`).join('')+'<button data-act="step">Step one day</button><button data-act="saves">Saves</button><button data-act="wiz">New world</button>'}
-function sched(){dirty=true}
-function frame(){if(dirty&&S&&!pdown&&!painting&&!document.querySelector('#dlg[open]')&&!(document.activeElement&&(document.activeElement.tagName=='SELECT'||(/INPUT|TEXTAREA/.test(document.activeElement.tagName)&&document.activeElement.closest('#main'))))){dirty=false;render()}requestAnimationFrame(frame)}
-function loop(){const n=performance.now();acc+=n-last;last=n;if(!S||!speed){acc=0;return}const ms=MS[speed];let k=0;while(acc>=ms&&k<5000){tick();acc-=ms;k++}if(k){$('#date').textContent=dstr();sched()}}
-function setSpeed(n){speed=n;acc=0;last=performance.now();ctl()}
-function edit(path){const o=get(path),parts=path.split('.');let h='<h3>Edit</h3>';
- for(const k in o){const v=o[k];if(typeof v=='object'||(k=='party'&&v<0))continue;
-  h+=`<label>${k}</label>`+(k=='party'?`<select data-k="${k}">${S.parties.map((p,i)=>`<option value="${i}" ${i==v?'selected':''}>${esc(p.name)}</option>`).join('')}</select>`:k=='st'?`<select data-k="${k}">${Object.keys(STN).concat(['Law','Ratified','Vetoed','Failed','Struck down','Repealed']).map(s=>`<option ${s==v?'selected':''}>${s}</option>`).join('')}</select>`:typeof v=='boolean'?`<select data-k="${k}"><option value="true" ${v?'selected':''}>true</option><option value="false" ${v?'':'selected'}>false</option></select>`:`<input data-k="${k}" type="${k=='color'?'color':typeof v=='number'?'number':'text'}" step="any" value="${esc(v)}">`)}
- h+=`<div class="row"><button id="sv">Save changes</button>${'name' in o?'<button id="rn">Random name</button>':''}<button id="cx">Cancel</button></div>`;
- dlg(h,d=>{$('#sv').onclick=()=>{d.querySelectorAll('[data-k]').forEach(i=>{const k=i.dataset.k;o[k]=typeof o[k]=='number'||k=='party'?+i.value:typeof o[k]=='boolean'?i.value=='true':i.value});if(['provs','munis'].includes(parts[0]))syncGeo();d.close();render()};
-  if($('#rn'))$('#rn').onclick=()=>d.querySelector('[data-k=name]').value=nm()})}
-function profile(ref){const [c,i]=ref.split(':'),m=(c=='H'?S.house:S.senate)[+i];if(!m)return;const pc=c=='H'?S.committees.filter(k=>k.mem.includes(+i)):[];
- dlg(`<h3>${esc(m.name)}</h3><p class="mut">${c=='S'?'Senator':m.prov>=0?`Representative, ${esc(S.provs[m.prov].name)}, district ${m.d}`:`Party-list representative, ${esc(S.plg[m.grp].name)}`} ${chip(m.party)}</p><p>${esc(m.bio)}</p>
- <p>Ideology ${m.ideo} (${word(m.ideo)}). Integrity ${m.integ}. Party loyalty ${m.loyal}. Ambition ${m.ambit}. Interests: ${m.int.join(', ')}. Terms served: ${m.terms}.</p><label>Trust in you: ${Math.round(m.trust)}</label><div class="meter"><div style="width:${m.trust}%"></div></div>
- ${pc.length?`<p>Committees: ${pc.map(k=>esc(k.name)).join(', ')}</p>`:''}<p class="mut">${m.hist.slice(0,5).map(esc).join('<br>')}</p>
- ${c=='H'?`<label>Offer a committee chair</label><select id="pcm">${S.committees.map((k,j)=>`<option value="${j}">${esc(k.name)}</option>`).join('')}</select>`:''}
- <div class="row"><button id="m1">Hold a one-on-one meeting</button>${c=='H'?'<button id="m2">Offer the chair</button>':''}<button id="m3">Edit</button><button id="cx">Close</button></div>`,d=>{
-  $('#m1').onclick=()=>{m.trust=cl(m.trust+4,0,100);m.hist.unshift(`${dstr()}: met privately with you.`);d.close();sched()};
-  if($('#m2'))$('#m2').onclick=()=>{const k=S.committees[+$('#pcm').value];k.chair=+i;if(!k.mem.includes(+i))k.mem.push(+i);m.trust=cl(m.trust+12,0,100);m.hist.unshift(`${dstr()}: named chair of ${k.name}.`);d.close();sched()};
-  $('#m3').onclick=()=>{d.close();edit((c=='H'?'house.':'senate.')+i)}})}
-function newBill(){const mine=S.house.map((m,i)=>[m,i]).filter(([m])=>m.party==S.player.party),al=k=>ART_LIB.filter(a=>k=='amend'?a.c:!a.c).map(a=>`<label style="display:flex;gap:6px;align-items:center"><input type="checkbox" class="ak" value="${a.id}"> ${esc(a.t)}</label>`).join('');
- dlg(`<h3>Submit a bill to The House</h3><label>Title</label><input id="bt1" value="An Act "><label>Kind</label><select id="bk"><option value="law">Ordinary law</option><option value="amend">Constitutional amendment of a setting (constituent assembly, then plebiscite)</option><option value="entrench">Write these articles into the Constitution (amendment route, then plebiscite)</option></select>
- <label>Principal author</label><select id="bs">${(mine.length?mine:S.house.map((m,i)=>[m,i])).map(([m,i])=>`<option value="${i}">${esc(m.name)}</option>`).join('')}</select><label>Articles</label><div id="al">${al('law')}</div>
- <h3>Custom article</h3><input id="ct" placeholder="Article text"><label>Effect on</label><select id="cs">${Object.keys(SL).map(k=>`<option value="${k}">${SL[k]}</option>`).join('')}</select><input id="cvl" type="number" step=".5" value="0"><label>Ideology (-1 to 1)</label><input id="ci" type="number" step=".1" value="0">
- <label>Amends (constitutional only)</label><select id="cc"><option value="">None</option>${Object.keys(CONL).map(k=>`<option value="${k}">${CONL[k][0]}</option>`).join('')}</select><input id="cn" type="number" step="any" placeholder="New value">
- <div class="row"><button id="ok">File in the House</button><button id="cx">Cancel</button></div>`,d=>{$('#bk').onchange=e=>{$('#al').innerHTML=al(e.target.value)};
-  $('#ok').onclick=()=>{const arts=[...d.querySelectorAll('.ak:checked')].map(x=>({...ART_LIB.find(a=>a.id==x.value)})),ct=$('#ct').value.trim();
-   if(ct){const a={id:0,t:ct,i:+$('#ci').value||0,tags:['governance'],e:{}};if($('#bk').value=='amend'&&$('#cc').value&&$('#cn').value!=='')a.c={[$('#cc').value]:+$('#cn').value};else if(+$('#cvl').value)a.e={[$('#cs').value]:+$('#cvl').value};arts.push(a)}
-   if(!arts.length){alert('Add at least one article.');return}
-   const b=makeBill({title:$('#bt1').value||'An Act',arts,orig:'H',sp:{ch:'H',i:+$('#bs').value},mine:true,entr:$('#bk').value=='entrench'});log(`${b.spn} files "${b.t}" in the House.`);d.close();cg='bl';tab='cg';sched()}})}
-function propose(k){dlg(`<h3>Propose an amendment</h3><p>${CONL[k][0]} (${CONL[k][1]}). Current value: ${S.con[k]}.</p><label>New value</label><input id="pv" type="number" step="any" value="${S.con[k]}"><div class="row"><button id="ok">File as a resolution</button><button id="cx">Cancel</button></div>`,d=>{$('#ok').onclick=()=>{const v=+$('#pv').value,mine=S.house.findIndex(m=>m.party==S.player.party),b=makeBill({title:`Resolution to amend: ${CONL[k][0]} to ${v}`,arts:[{id:0,t:`${CONL[k][0]} becomes ${v}`,i:0,tags:['governance'],e:{},c:{[k]:v}}],orig:'H',sp:{ch:'H',i:Math.max(0,mine)},mine:true});d.close();tab='cg';cg='bl';sched()}})}
-function wizHTML(){return `<h3>New world</h3><label>Seed (the same seed gives the same map)</label><input id="wsd" type="number" value="${wz.seed}"><label>Provinces (6 to 40)</label><input id="wnp" type="number" value="${wz.N}"><label>Start year (first general election is the second Monday of May)</label><input id="wy" type="number" value="${wz.y0}">
- <h3>Parties</h3>${wz.parties.map((p,i)=>`<div class="row" style="margin:4px 0"><input id="pn${i}" value="${esc(p.name)}" style="flex:2"><input id="pa${i}" value="${esc(p.acr||'')}" placeholder="Acr." title="Acronym" style="flex:0 0 54px"><input id="pc${i}" type="color" value="${p.color}" style="flex:0 0 46px;padding:2px"><input id="pi${i}" type="number" step=".1" min="-1" max="1" value="${p.ideo}" title="Ideology" style="flex:0 0 64px"><input id="pp${i}" type="number" step=".01" value="${p.pop}" title="Popularity" style="flex:0 0 64px"></div>`).join('')}
- <div class="row"><button id="wa">Add party</button><button id="wr">Remove last</button></div><label>Your party</label><select id="wpl">${wz.parties.map((p,i)=>`<option value="${i}" ${i==wz.pl?'selected':''}>${esc(p.name)}</option>`).join('')}</select>
- <h3>Map</h3><label>Upload a map image (dark land on a light sea; optional)</label><input id="wmap" type="file" accept="image/*"><label>Land threshold (0 to 255)</label><input id="wth" type="number" value="${wz.th}"><label><input id="winv" type="checkbox" ${wz.inv?'checked':''}> Light pixels are land</label><canvas id="wprev" width="130" height="190" style="width:130px;height:190px;cursor:default;display:${wz.land?'block':'none'}"></canvas>
- <div class="row"><button id="wgo">Create world</button><button id="cx">Cancel</button></div>`}
-function readWiz(){wz.seed=+$('#wsd').value;wz.N=+$('#wnp').value;wz.y0=+$('#wy').value;wz.parties=wz.parties.map((p,i)=>({name:$('#pn'+i).value,acr:$('#pa'+i).value.trim(),color:$('#pc'+i).value,ideo:cl(+$('#pi'+i).value,-1,1),pop:Math.max(.01,+$('#pp'+i).value)}));wz.pl=+$('#wpl').value;wz.th=+$('#wth').value;wz.inv=$('#winv').checked}
-function wizard(){wz={seed:Math.floor(Math.random()*1e6),N:24,y0:2025,parties:PARTIES.map(p=>({...p})),pl:0,th:160,inv:false,land:null,file:null};drawWiz()}
-function drawWiz(){dlg(wizHTML(),d=>{
- const prev=async()=>{readWiz();if(!wz.file)return;wz.land=await imgToLand(wz.file,wz.th,wz.inv);const c=$('#wprev'),x=c.getContext('2d'),im=x.createImageData(W,H);wz.land.forEach((v,i)=>{const col=v?[60,125,82]:[169,203,221];im.data.set([...col,255],i*4)});x.putImageData(im,0,0);c.style.display='block'};
- $('#wa').onclick=()=>{readWiz();if(wz.parties.length<8)wz.parties.push({name:'New Party',color:'#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0'),ideo:0,pop:.1});drawWiz()};
- $('#wr').onclick=()=>{readWiz();if(wz.parties.length>2)wz.parties.pop();drawWiz()};
- $('#wmap').onchange=e=>{wz.file=e.target.files[0];prev()};$('#wth').onchange=prev;$('#winv').onchange=prev;
- $('#wgo').onclick=()=>{readWiz();const N=cl(wz.N||24,6,40);if(wz.land&&wz.land.reduce((a,v)=>a+(v?1:0),0)<N*12){alert('The map has too little land for that many provinces.');return}
-  const s=fresh({N,seed:wz.seed||1,y0:wz.y0||2025,parties:wz.parties,land:wz.land});s.player={party:wz.pl};d.close();boot(s)}})}
-function boot(s){S=migrate(s);sel={p:-1,m:-1};rep=null;tab='ov';electSpeaker();electSenPres();log('A new republic begins. Every office, party, and locality is editable.');ctl();setSpeed(1);render()}
-async function savesDlg(){let L=[];try{L=await listSlots()}catch(e){}
- dlg(`<h3>Saves</h3><ul>${L.map(x=>`<li class="ed" style="cursor:default"><b>${esc(x.n)}</b><span>${esc(x.d)} <button data-ld="${esc(x.n)}">Load</button> <button data-dl="${esc(x.n)}">Delete</button></span></li>`).join('')||'<li class="ed" style="cursor:default">No saves yet.</li>'}</ul>
- ${S?`<label>Save as</label><input id="sn" value="world 1"><div class="row"><button id="ss">Save</button><button id="se">Export file</button></div>`:''}<label>Import a world file</label><input id="si" type="file" accept=".json"><div class="row"><button id="cx">Close</button></div>`,d=>{
-  d.querySelectorAll('[data-ld]').forEach(b=>b.onclick=async()=>{boot2(await loadSlot(b.dataset.ld));d.close()});
-  d.querySelectorAll('[data-dl]').forEach(b=>b.onclick=async()=>{await delSlot(b.dataset.dl);d.close();savesDlg()});
-  if(S){$('#ss').onclick=async()=>{await saveSlot($('#sn').value||'world');d.close();savesDlg()};$('#se').onclick=()=>download(($('#sn').value||'world')+'.json',ser(S))}
-  $('#si').onchange=async e=>{boot2(des(await e.target.files[0].text()));d.close()}})}
-function boot2(s){S=migrate(s);sel={p:-1,m:-1};rep=null;ctl();setSpeed(0);render()}
-document.addEventListener('pointerdown',()=>pdown=true);
-addEventListener('pointerup',()=>{pdown=false;if(painting){painting=false;syncGeo();sched()}});
-document.addEventListener('click',e=>{const t=e.target.closest('[data-p],[data-m],[data-tab],[data-speed],[data-act],[data-mode],[data-tool],[data-back],[data-view],[data-pdf],[data-cg],[data-mf],[data-mem],[data-b],[data-prop],[data-go],[data-unauto],[data-emb]');if(!t||$('#dlg').open)return;const D=t.dataset;
- if(D.tab){tab=D.tab;render()}else if(D.speed!==undefined)setSpeed(+D.speed);
- else if(D.act){const a=D.act;if(a=='step'){tick();$('#date').textContent=dstr();render()}else if(a=='wiz')wizard();else if(a=='quick')boot(fresh({}));else if(a=='saves')savesDlg();
-  else if(a=='ev'){log(E[+$('#ev').value][1](S));render()}else if(a=='bill'){draft(BT[+$('#bt').value]);render()}
-  else if(a=='addb'){const m=S.munis[sel.m];m.bn++;m.brgy.push(mkBrgy(m,m.bn-1));render()}
-  else if(a=='nbill')newBill();else if(a=='addpl'){S.plg.push({name:'New group',sector:'Sector',pop:.05,party:0});rebuildPL();rebuildCmt();render()}else if(a=='recpl'){rebuildPL();rebuildCmt();render()}
-  else if(a=='rally'){rally();render()}
-  else if(a=='mkauto'){const rs=S.regs.map((r,i)=>[r,i]).filter(([r,i])=>!S.autos[i]);if(!rs.length)return;dlg(`<h3>Grant autonomy</h3><p>The region gets its own parliament and Chief Minister, re-elected with each general election.</p><select id="ra">${rs.map(([r,i])=>`<option value="${i}">${esc(r.name)}</option>`).join('')}</select><div class="row"><button id="ok">Grant</button><button id="cx">Cancel</button></div>`,d=>{$('#ok').onclick=()=>{const i=+$('#ra').value;if(S.plebs.some(p=>p.reg==i))return;const dd=S.dt+60+Math.floor(rnd()*31);S.plebs.push({kind:'auto',reg:i,d:dd});log('Congress passes an organic act for '+S.regs[i].name+'. A plebiscite is set for '+fday(dd)+' (Art. X Sec. 18).');d.close();render()}})}
-  else if(a=='remap')remapDlg();else if(a=='sbox')bsandbox();else if(a=='martial'){martial();render()}else if(a=='extml'){extendML();render()}else if(a=='revml'){revokeML();render()}else if(a=='clrgrp'){grp=[];render()}else if(a=='mkgrp')mkgrpDlg()
-  else if(a=='spk'){const mine=S.house.map((m,i)=>[m,i]).filter(([m])=>m.party==S.player.party);dlg(`<h3>Elect the Speaker</h3><p>Members vote by party loyalty, ideology, and their trust in you. A majority of all members is needed; otherwise the top two go to a runoff.</p><label>Nominate a candidate from your party</label><select id="sc"><option value="">Let the House decide</option>${mine.map(([m,i])=>`<option value="${i}">${esc(m.name)}</option>`).join('')}</select><div class="row"><button id="ok">Hold the vote</button><button id="cx">Cancel</button></div>`,d=>{$('#ok').onclick=()=>{const v=$('#sc').value;electSpeaker(v===''?null:+v);d.close();render()}})}
-  else if(a=='imp')dlg(`<h3>Impeach the President</h3><p>Art. XI: the House needs ${S.con.impHouse}% of all members to impeach, then the Senate needs ${S.con.impSenate}% of all senators to convict. Only one proceeding is allowed per year.</p><label><input type="checkbox" id="is"> Request a secret ballot</label><div class="row"><button id="ok">File the complaint</button><button id="cx">Cancel</button></div>`,d=>{$('#ok').onclick=()=>{impeach($('#is').checked);d.close();render()}})
-  else if(a=='newcm')dlg(`<h3>Create committee</h3><label>Name</label><input id="cn1" value="Committee on "><label>Focus topic</label><select id="ct1">${INT.map(x=>`<option>${x}</option>`).join('')}</select><label>Chair</label><select id="cc1">${S.house.map((m,i)=>`<option value="${i}">${esc(m.name)}</option>`).join('')}</select><div class="row"><button id="ok">Create</button><button id="cx">Cancel</button></div>`,d=>{$('#ok').onclick=()=>{const ch=+$('#cc1').value,mm=[ch,...S.house.map((_,i)=>i).filter(i=>i!=ch).sort(()=>rnd()-.5).slice(0,8)];S.committees.push({name:$('#cn1').value,tag:$('#ct1').value,chair:ch,mem:mm});d.close();render()}})}
- else if(D.mode){mapMode=D.mode;render()}else if(D.tool){tool=D.tool;render()}else if(D.back){if(D.back=='all')sel={p:-1,m:-1};else sel.m=-1;render()}
- else if(D.cg){cg=D.cg;render()}else if(D.mf){if(D.mf=='mine')mf.mine=!mf.mine;else mf.ch=D.mf;render()}else if(D.mem)profile(D.mem);
- else if(D.prop)propose(D.prop);else if(D.unauto){delete S.autos[D.unauto];S.regs[D.unauto].auto=false;log(S.regs[D.unauto].name+' loses its autonomy.');render()}else if(D.go!==undefined){sel={p:S.munis[+D.go].prov,m:+D.go};tab='mp';render()}
- else if(D.b){const [id,a,x,y]=D.b.split(','),b=S.bills.find(q=>q.id==+id);if(a=='adv')act(b,false);else if(a=='sec')act(b,true);else if(a=='art')artVote(b,+x,false);else if(a=='force')artVote(b,+x,false,+y);else if(a=='repeal')repealBill(b);render()}
- else if(D.emb){const [k,id]=D.emb.split(':');if(k=='flag')S.flagSd=hash(Math.random());else if(k=='p')S.provs[+id].sd=hash(Math.random());else S.munis[+id].sd=hash(Math.random());render()}
- else if(D.view){rep=S.elections.find(r=>r.id==D.view);render()}
- else if(D.pdf){$('#rp').innerHTML=reportHTML(S.elections.find(r=>r.id==D.pdf));print()}
- else if(D.m!==undefined){sel.m=+D.m;render()}else if(D.p)edit(D.p)});
-document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.closest&&e.target.closest('[data-p],[data-m],[data-mem],[data-go]'))e.target.click()});
-ctl();render();setInterval(loop,100);requestAnimationFrame(frame);
-listSlots().then(L=>{if(L.some(x=>x.n=='autosave')&&!S)$('#main').insertAdjacentHTML('afterbegin','<p><button id="cont">Continue from autosave</button></p>'),$('#cont').onclick=async()=>{boot2(await loadSlot('autosave'));setSpeed(1)}}).catch(()=>{});
+/**
+ * UI Rendering Engine, Global Edit Mode Controls, and Dashboard Views
+ */
 
-function remapDlg(){dlg(`<h3>Upload a map</h3><p>The geography is rebuilt from the image: provinces, municipalities, barangays, and district representatives are regenerated. Parties, the Constitution, national officials, bills, and election history are kept.</p><label>Map image (dark land on a light sea)</label><input id="rf" type="file" accept="image/*"><label>Land threshold (0 to 255)</label><input id="rt" type="number" value="160"><label><input id="ri" type="checkbox"> Light pixels are land</label><div class="row"><button id="ok">Rebuild constituencies</button><button id="cx">Cancel</button></div>`,d=>{
- $('#ok').onclick=async()=>{const f=$('#rf').files[0];if(!f){alert('Choose an image first.');return}const land=await imgToLand(f,+$('#rt').value||160,$('#ri').checked),n=S.provs.length;
-  if(land.reduce((a,v)=>a+(v?1:0),0)<n*12){alert('The map has too little land for '+n+' provinces.');return}
-  const ns=fresh({N:n,seed:S.seed+1,y0:S.y0,parties:S.parties,land});['dt','con','plg','stats','news','elections','bills','nbid','player','pres','vp','cabinet','senate','justices','bodies','next','nextB','lastPresY','crisis','convene'].forEach(k=>ns[k]=S[k]);
-  ns.pend=null;ns.inaug=null;rebuildPL(ns);rebuildCmt(ns);ns.speaker=0;ns.bills.forEach(b=>{b.sp.i=Math.min(b.sp.i,(b.sp.ch=='H'?ns.house:ns.senate).length-1)});
-  S=migrate(ns);sel={p:-1,m:-1};electSpeaker();electSenPres();log('The map is redrawn and constituencies are regenerated.');d.close();render()}})}
+import { validateAdministrativeHierarchy, searchLegalFramework } from './world.js';
+import { getCandidateDisplayName } from './data.js';
 
-function groupPanel(){const c=grp.length?provCheck(grp):null;return `<h2>Group municipalities</h2><p class="mut">Select municipalities, then propose a province. Creating or merging provinces needs the Local Government Code criteria and a plebiscite in the affected units (Art. X Sec. 10).</p><ul>${grp.map(id=>{const m=S.munis[id];return `<li class="ed" style="cursor:default"><b>${esc(m.name)}</b><span>${esc(S.provs[m.prov].name)}, ${fmt(m.pop)}</span></li>`}).join('')||'<li class="ed" style="cursor:default">None selected.</li>'}</ul>${c?`<table class="tbl"><tr><td>Population</td><td>${fmt(c.pop)}</td></tr><tr><td>Area (estimated)</td><td>${fmt(c.area)} sq km</td></tr><tr><td>Income (estimated)</td><td>PHP ${c.inc} million</td></tr></table>${c.notes.map(n=>`<p class="mut">${esc(n)}</p>`).join('')}`:''}<div class="row"><button data-act="mkgrp" ${grp.length?'':'disabled'}>Propose a new province</button><button data-act="clrgrp">Clear</button></div>`}
-function mkgrpDlg(){const c=provCheck(grp);dlg(`<h3>Propose a new province</h3><p>${grp.length} municipalities, ${fmt(c.pop)} residents.</p>${c.notes.map(n=>`<p class="mut">${esc(n)}</p>`).join('')}<label>Name of the new province</label><input id="gn" value="${esc(place())}">${c.ok?'':'<label><input type="checkbox" id="go"> Override the criteria (sandbox)</label>'}<div class="row"><button id="ok">Call the plebiscite</button><button id="cx">Cancel</button></div>`,d=>{$('#ok').onclick=()=>{const msg=proposeProvince(grp.slice(),$('#gn').value||'New',c.ok||($('#go')&&$('#go').checked));if(msg){alert(msg);return}grp=[];tool='sel';d.close();render()}})}
-function bsandbox(){const mine=S.house.map((m,i)=>[m,i]).filter(([m])=>m.party==S.player.party),au=mine.length?mine:S.house.map((m,i)=>[m,i]);let n=2,res=null,key='';
- dlg(`<h3>Bill Sandbox</h3><p class="mut">Write your own bill. Each article is read by an analyzer that decides what it affects. If the site has an Anthropic key configured, Claude analyzes it; otherwise a built-in keyword analyzer does.</p><label>Title</label><input id="sbt" value="An Act "><label>Principal author</label><select id="sbu">${au.map(([m,i])=>`<option value="${i}">${esc(m.name)}</option>`).join('')}</select><label>Treatment</label><select id="sbk"><option value="auto">Let the analyzer decide</option><option value="law">Ordinary law only</option><option value="entrench">Write it into the Constitution (amendment route)</option></select><div id="sba"></div>
- <div class="row"><button id="sbp">Add article</button><button id="sbm">Remove last</button></div><div id="sbr" class="mut" style="margin-top:8px"></div><div class="row"><button id="sbz">Analyze</button><button id="ok">File in The House</button><button id="cx">Cancel</button></div>`,d=>{
-  const vals=()=>[...d.querySelectorAll('.sbx')].map(x=>x.value.trim()),draw=v=>{$('#sba').innerHTML=Array.from({length:n},(_,k)=>`<label>Article ${k+1}</label><textarea class="sbx" rows="3" style="width:100%;font:inherit">${esc((v&&v[k])||'')}</textarea>`).join('')};draw([]);
-  $('#sbp').onclick=()=>{const v=[...d.querySelectorAll('.sbx')].map(x=>x.value);if(n<12)n++;draw(v)};$('#sbm').onclick=()=>{const v=[...d.querySelectorAll('.sbx')].map(x=>x.value);if(n>1)n--;draw(v)};
-  const run=async()=>{const v=vals().filter(Boolean),t=$('#sbt').value;if(!v.length){alert('Write at least one article.');return null}$('#sbr').textContent='Analyzing...';res=await analyzeBill(t,v);res.txt=v;key=JSON.stringify([t,v]);
-   $('#sbr').innerHTML=`<b>Analyzed by ${esc(res.src)}</b>`+res.arts.map((a,k)=>`<div class="card" style="cursor:default;margin-top:6px"><b>Article ${k+1}</b> ${a.summary?'<span class="mut">'+esc(a.summary)+'</span>':''}<br>${word(a.i)} (${a.i}). ${a.tags.join(', ')}<br>${Object.keys(a.e).length?Object.keys(a.e).map(q=>`${q} ${a.e[q]>0?'+':''}${a.e[q]}`).join(', '):'No measurable effect.'}${a.c?'<br><b>Amends the Constitution:</b> '+Object.keys(a.c).map(q=>`${CONL[q][0]} to ${a.c[q]}`).join('; '):''}${a.notes.map(x=>'<br><span class="mut">'+esc(x)+'</span>').join('')}</div>`).join('');return res};
-  $('#sbz').onclick=run;
-  $('#ok').onclick=async()=>{const v=vals().filter(Boolean),t=$('#sbt').value||'An Act';if(!res||key!=JSON.stringify([$('#sbt').value,v]))if(!await run())return;const mode=$('#sbk').value;
-   const arts=res.arts.map((a,k)=>({id:0,t:res.txt[k],i:a.i,tags:a.tags.length?a.tags:['governance'],e:a.e,c:mode=='law'?undefined:a.c}));
-   const b=makeBill({title:t,arts,orig:'H',sp:{ch:'H',i:+$('#sbu').value},mine:true,entr:mode=='entrench'});log(`${b.spn} files "${b.t}" in the House.`);d.close();tab='cg';cg='bl';sched()}})}
+export let isEditMode = false;
+
+export function toggleEditMode(enabled, state) {
+  isEditMode = enabled;
+  document.body.classList.toggle('edit-mode-active', isEditMode);
+  
+  const editBanner = document.getElementById('edit-mode-banner');
+  if (editBanner) {
+    editBanner.style.display = isEditMode ? 'flex' : 'none';
+  }
+
+  if (!isEditMode) {
+    const validation = validateAdministrativeHierarchy(state);
+    if (!validation.valid) {
+      console.warn("Edit Mode validation warnings:", validation.issues);
+      alert(`Scenario saved with ${validation.issues.length} potential issue(s). Check console for details.`);
+    }
+  }
+}
+
+export function renderNationSettingsEditor(state, containerEl) {
+  const { nation } = state;
+
+  containerEl.innerHTML = `
+    <div class="editor-card">
+      <h3>Nation Settings ${isEditMode ? '<span class="badge-edit">Edit Mode</span>' : ''}</h3>
+      <form id="nation-settings-form">
+        <div class="form-group">
+          <label>Nation Name:</label>
+          <input type="text" id="nation-name" value="${nation.name}" ${!isEditMode ? 'disabled' : ''} />
+        </div>
+        <div class="form-group">
+          <label>Short Name:</label>
+          <input type="text" id="nation-short-name" value="${nation.shortName}" ${!isEditMode ? 'disabled' : ''} />
+        </div>
+        <div class="form-group">
+          <label>Currency Symbol / Code:</label>
+          <input type="text" id="nation-currency" value="${nation.currency}" ${!isEditMode ? 'disabled' : ''} />
+        </div>
+        <div class="form-group">
+          <label>National Capital LGU:</label>
+          <select id="nation-capital-select" ${!isEditMode ? 'disabled' : ''}>
+            ${Object.values(state.lgus || {}).map(lgu => `
+              <option value="${lgu.id}" ${lgu.id === nation.capitalId ? 'selected' : ''}>
+                ${lgu.name} (${lgu.type})
+              </option>
+            `).join('')}
+          </select>
+        </div>
+        ${isEditMode ? '<button type="submit" class="btn-primary">Save Nation Settings</button>' : ''}
+      </form>
+    </div>
+  `;
+
+  if (isEditMode) {
+    document.getElementById('nation-settings-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      state.nation.name = document.getElementById('nation-name').value;
+      state.nation.shortName = document.getElementById('nation-short-name').value;
+      state.nation.currency = document.getElementById('nation-currency').value;
+      state.nation.capitalId = document.getElementById('nation-capital-select').value;
+      alert("Nation settings updated successfully.");
+    });
+  }
+}
+
+export function renderDistrictsView(provinceId, state, containerEl) {
+  const province = state.provinces[provinceId];
+  if (!province) return;
+
+  const provincialDistricts = (province.provincialDistrictIds || []).map(id => state.provincialDistricts[id]).filter(Boolean);
+  const legislativeDistricts = (province.legislativeDistrictIds || []).map(id => state.legislativeDistricts[id]).filter(Boolean);
+
+  containerEl.innerHTML = `
+    <div class="district-management-grid">
+      <div class="district-panel">
+        <h4>Sangguniang Panlalawigan Districts (Provincial)</h4>
+        <p class="section-desc">Districts for provincial legislative seats. Minimum 2 per province.</p>
+        <ul class="district-list">
+          ${provincialDistricts.map(pd => `
+            <li class="district-card">
+              <strong>${pd.name}</strong> (Number:${pd.number})
+              <div>Population: ${pd.population.toLocaleString()}</div>
+              <div>LGUs: ${pd.lguIds.map(id => state.lgus[id]?.name).join(', ')}</div>
+              <div>Seats: ${pd.sanggunianSeats || 5}</div>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+
+      <div class="district-panel">
+        <h4>House Legislative Districts (National)</h4>
+        <p class="section-desc">Legally enacted congressional seats representing this province in the House.</p>
+        <ul class="district-list">
+          ${legislativeDistricts.map(ld => `
+            <li class="district-card">
+              <strong>${ld.name}</strong> (District${ld.number})
+              <div>Population: ${ld.population.toLocaleString()}</div>
+              <div>LGUs: ${ld.lguIds.map(id => state.lgus[id]?.name).join(', ')}</div>
+              <div>Representative: ${ld.representativeId ? getCandidateDisplayName(state.candidates?.[ld.representativeId]) : 'Vacant'}</div>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+export function renderLegalFrameworkTab(state, containerEl) {
+  let currentSearch = "";
+
+  function updateView() {
+    const entries = searchLegalFramework(currentSearch, state);
+
+    containerEl.innerHTML = `
+      <div class="legal-framework-panel">
+        <div class="panel-header">
+          <h3>Philippine Legal Framework & Reference Database</h3>
+          <p class="subtitle">Authoritative statutory bases governing simulator mechanics, governance, and automatic calculations.</p>
+        </div>
+
+        <div class="filter-bar">
+          <input 
+            type="text" 
+            id="legal-search-input" 
+            placeholder="Search statutes, Republic Acts, Constitution (e.g. RA 11964, budget, LGU)..." 
+            value="${currentSearch}" 
+          />
+        </div>
+
+        <div class="legal-entries-list">
+          ${entries.map(entry => `
+            <div class="legal-card ${entry.status}">
+              <div class="legal-card-header">
+                <span class="legal-badge ${entry.type.toLowerCase()}">${entry.type}</span>
+                <span class="legal-number">${entry.number ? 'No. ' + entry.number : ''}</span>
+                <span class="status-pill status-${entry.status}">${entry.status.toUpperCase()}</span>
+              </div>
+              <h4 class="legal-title">${entry.title}</h4>
+              <div class="legal-meta">
+                <span><strong>Topic:</strong> ${entry.topic}</span> | 
+                <span><strong>Source:</strong> ${entry.source}</span>
+              </div>
+
+              <div class="legal-provisions">
+                <h5>Provisions:</h5>
+                ${entry.provisions.map(p => `
+                  <div class="provision-item">
+                    <strong>${p.section} (${p.title}):</strong>
+                    <p>"${p.content}"</p>
+                  </div>
+                `).join('')}
+              </div>
+
+              <div class="game-mechanics-link">
+                <h5>Bound Simulator Mechanics:</h5>
+                <ul>
+                  ${entry.gameMechanics.map(m => `<li>⚡ ${m}</li>`).join('')}
+                </ul>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    document.getElementById('legal-search-input')?.addEventListener('input', (e) => {
+      currentSearch = e.target.value;
+      updateView();
+    });
+  }
+
+  updateView();
+}
+
+export function renderBudgetTab(state, containerEl) {
+  const budget = state.nationalBudget || { items: [], stage: "nep_submission", fiscalYear: 2026 };
+  const totalProposed = budget.items.reduce((sum, i) => sum + (i.proposedAmount || 0), 0);
+  const totalEnacted = budget.items.reduce((sum, i) => sum + (i.enactedAmount || 0), 0);
+
+  containerEl.innerHTML = `
+    <div class="budget-view-container">
+      <div class="budget-header-card">
+        <h3>National Budget & General Appropriations Act (FY ${budget.fiscalYear})</h3>
+        <p><strong>Pipeline Stage:</strong> <span class="badge badge-stage">${budget.stage.replace(/_/g, ' ').toUpperCase()}</span></p>
+        <div class="budget-metrics-grid">
+          <div class="metric-box">
+            <span>Proposed NEP Total:</span>
+            <strong>${state.nation.currency} ${totalProposed.toLocaleString()}</strong>
+          </div>
+          <div class="metric-box">
+            <span>Enacted GAA Total:</span>
+            <strong>${state.nation.currency} ${totalEnacted.toLocaleString()}</strong>
+          </div>
+          <div class="metric-box">
+            <span>National Treasury:</span>
+            <strong>${state.nation.currency} ${(state.nation.treasury || 0).toLocaleString()}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="budget-items-panel mt-4">
+        <h4>Departmental & Program Breakdown</h4>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Department</th>
+              <th>Program</th>
+              <th>Category</th>
+              <th>Executive NEP</th>
+              <th>House GAB</th>
+              <th>Senate GAB</th>
+              <th>Final GAA</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${budget.items.map(item => `
+              <tr>
+                <td><strong>${item.departmentId}</strong></td>
+                <td>${item.programName}</td>
+                <td><span class="category-pill">${item.category}</span></td>
+                <td>${state.nation.currency}${item.proposedAmount.toLocaleString()}</td>
+                <td>${state.nation.currency}${(item.houseAmount || item.proposedAmount).toLocaleString()}</td>
+                <td>${state.nation.currency}${(item.senateAmount || item.proposedAmount).toLocaleString()}</td>
+                <td><strong>${state.nation.currency}${(item.enactedAmount || item.proposedAmount).toLocaleString()}</strong></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}

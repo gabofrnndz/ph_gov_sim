@@ -1,12 +1,70 @@
-const dbp=()=>new Promise((res,rej)=>{const r=indexedDB.open('phsim',1);r.onupgradeneeded=()=>r.result.createObjectStore('s');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
-const tx=(m,f)=>dbp().then(d=>new Promise((res,rej)=>{const t=d.transaction('s',m),q=f(t.objectStore('s'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)}));
-const ser=o=>JSON.stringify(o,(k,v)=>ArrayBuffer.isView(v)?{__ta:v.constructor.name,d:Array.from(v)}:v);
-const des=s=>JSON.parse(s,(k,v)=>v&&v.__ta?new self[v.__ta](v.d):v);
-const saveSlot=n=>Promise.all([tx('readwrite',s=>s.put(ser(S),'d:'+n)),tx('readwrite',s=>s.put({n,d:dstr()},'m:'+n))]);
-const loadSlot=n=>tx('readonly',s=>s.get('d:'+n)).then(x=>des(x));
-const listSlots=()=>tx('readonly',s=>s.getAll(IDBKeyRange.bound('m:','m:\uffff')));
-const delSlot=n=>Promise.all([tx('readwrite',s=>s.delete('d:'+n)),tx('readwrite',s=>s.delete('m:'+n))]);
-const autosave=()=>{if(S)saveSlot('autosave').catch(()=>{})};
-function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
-function imgToLand(file,thr,light){return new Promise(res=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(im,0,0,W,H);
- const d=x.getImageData(0,0,W,H).data,land=new Uint8Array(W*H);for(let i=0;i<W*H;i++){const l=.3*d[i*4]+.59*d[i*4+1]+.11*d[i*4+2];if(d[i*4+3]>40&&(light?l>thr:l<thr))land[i]=1+Math.min(2,Math.floor((i/W|0)/(H/3)))}res(land)};im.src=URL.createObjectURL(file)})}
+/**
+ * State Storage, Hydration, and Migration System
+ */
+
+import { INITIAL_LEGAL_DATABASE, INITIAL_POLITICAL_PARTIES } from './data.js';
+
+const STORAGE_KEY = "ph_gov_sim_save_state";
+
+export function migrateSaveState(loadedState) {
+  if (!loadedState) return null;
+
+  if (!loadedState.legalFramework) {
+    loadedState.legalFramework = { ...INITIAL_LEGAL_DATABASE };
+  } else {
+    Object.keys(INITIAL_LEGAL_DATABASE).forEach(key => {
+      if (!loadedState.legalFramework[key]) {
+        loadedState.legalFramework[key] = INITIAL_LEGAL_DATABASE[key];
+      }
+    });
+  }
+
+  if (!loadedState.politicalParties) {
+    loadedState.politicalParties = { ...INITIAL_POLITICAL_PARTIES };
+  }
+  if (!loadedState.candidates) {
+    loadedState.candidates = {};
+  }
+  if (!loadedState.bills) {
+    loadedState.bills = [];
+  }
+
+  if (!loadedState.nationalBudget) {
+    loadedState.nationalBudget = {
+      fiscalYear: 2026,
+      stage: "nep_submission",
+      items: [
+        { id: "b1", departmentId: "DEPED", programName: "Basic Education Facilities", category: "Capital Outlays", proposedAmount: 120_000_000_000, houseAmount: 125_000_000_000, senateAmount: 122_000_000_000, enactedAmount: 123_500_000_000 },
+        { id: "b2", departmentId: "DPWH", programName: "Flood Mitigation & Highways", category: "Capital Outlays", proposedAmount: 250_000_000_000, houseAmount: 260_000_000_000, senateAmount: 245_000_000_000, enactedAmount: 252_500_000_000 },
+        { id: "b3", departmentId: "DOH", programName: "Health Facilities Enhancement", category: "MOOE", proposedAmount: 80_000_000_000, houseAmount: 85_000_000_000, senateAmount: 88_000_000_000, enactedAmount: 86_500_000_000 }
+      ]
+    };
+  }
+
+  if (!loadedState.lguBudgets) {
+    loadedState.lguBudgets = {};
+  }
+
+  return loadedState;
+}
+
+export function saveGameState(state) {
+  try {
+    const serialized = JSON.stringify(state);
+    localStorage.setItem(STORAGE_KEY, serialized);
+  } catch (err) {
+    console.error("Failed to save state to LocalStorage:", err);
+  }
+}
+
+export function loadGameState() {
+  try {
+    const serialized = localStorage.getItem(STORAGE_KEY);
+    if (!serialized) return null;
+    const parsed = JSON.parse(serialized);
+    return migrateSaveState(parsed);
+  } catch (err) {
+    console.error("Failed to load state from LocalStorage:", err);
+    return null;
+  }
+}
