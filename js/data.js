@@ -3,7 +3,7 @@ const F=['Maria','Jose','Ana','Juan','Liza','Ramon','Luz','Andres','Carmela','Ra
 const L=['Santos','Reyes','Cruz','Bautista','Garcia','Mendoza','Torres','Villanueva','Navarro','Castillo','Dizon','Salazar','Domingo','Pascual','Panganiban','Soriano','De Leon','Fernandez','Manalo','Aguilar'];
 const SYL=['ba','la','ma','sa','ta','pa','ka','na','bu','lu','ri','gan','dan','tag','lig','bat','si','ya','ro','mi'];
 const DEPTS=['Agrarian Reform','Agriculture','Budget and Management','Education','Energy','Environment and Natural Resources','Finance','Foreign Affairs','Health','Human Settlements','Information and Communications Technology','Interior and Local Government','Justice','Labor and Employment','National Defense','Public Works and Highways','Science and Technology','Social Welfare and Development','Tourism','Trade and Industry','Transportation','Migrant Workers'];
-const PARTIES=[{name:'Alyansa Sinag',acr:'AS',color:'#E3A008',ideo:.3,pop:.28},{name:'Partido Tagumpay',acr:'PT',color:'#1B6B8A',ideo:-.4,pop:.26},{name:'Bagong Hangin',acr:'BH',color:'#3C7D52',ideo:-.8,pop:.18},{name:'Kilusang Lupa',acr:'KL',color:'#C23B2E',ideo:.8,pop:.16},{name:'Samahang Malaya',acr:'SM',color:'#7A5C99',ideo:0,pop:.12}];
+const PARTIES=[{name:'Alyansa Sinag',acr:'AS',names:'',ni:0,color:'#E3A008',ideo:.3,pop:.28},{name:'Partido Tagumpay',acr:'PT',names:'',ni:0,color:'#1B6B8A',ideo:-.4,pop:.26},{name:'Bagong Hangin',acr:'BH',names:'',ni:0,color:'#3C7D52',ideo:-.8,pop:.18},{name:'Kilusang Lupa',acr:'KL',names:'',ni:0,color:'#C23B2E',ideo:.8,pop:.16},{name:'Samahang Malaya',acr:'SM',names:'',ni:0,color:'#7A5C99',ideo:0,pop:.12}];
 const SL={approval:'Presidential approval (%)',growth:'GDP growth (%)',treasury:'Treasury (PHP trillion)',corruption:'Corruption index (lower is better)',order:'Public order (%)',poverty:'Poverty rate (%)',education:'Education index',health:'Health index',environment:'Environment index'};
 const A=(id,t,i,tags,e,c)=>({id,t,i,tags,e:e||{},c});
 const ART_LIB=[A(1,'School meals program',-.6,['education','budget'],{education:3,treasury:-.3,approval:2,poverty:-1}),
@@ -86,3 +86,74 @@ const MECH=['Art. VI Sec. 5: district seats plus party-list seats (up to 20 perc
 'Art. X Sec. 10 and 18: creating, merging, or abolishing a province, and creating an autonomous region, needs the Local Government Code criteria and a plebiscite.',
 'Art. XI Sec. 3: impeachment needs one-third of the House to impeach and two-thirds of the Senate to convict; one proceeding per year.',
 'Art. XVII: amendments need three-fourths of all members of Congress and a plebiscite held 60 to 90 days after approval.'];
+
+const BUD0=[['edu','Education',520,{education:.6,growth:.05},'education',-.3],['hlt','Health',190,{health:.6,approval:.05},'health',-.4],['soc','Social welfare',290,{poverty:-.5,approval:.1},'budget',-.6],['inf','Infrastructure',700,{growth:.12,environment:-.05},'infrastructure',0],['def','Defense and public order',240,{order:.4},'order',.6],['agr','Agriculture',110,{poverty:-.2,growth:.03},'budget',-.2],['env','Environment and disaster resilience',70,{environment:.5,order:.1},'environment',-.3],['gov','Governance and courts',240,{corruption:-.3},'governance',.1],['debt','Debt service',1000,{},'budget',0]];
+const LOCAL_LIB=[['Establishing a state college in {p}',{education:.4,approval:.1},'education',-.3,3],['Converting a provincial road in {p} into a national road',{growth:.1},'infrastructure',0,2],['Establishing a district hospital in {p}',{health:.4},'health',-.4,3],['Declaring a protected landscape in {p}',{environment:.5,growth:-.05},'environment',-.3,1],['Creating a regional trial court branch in {p}',{order:.3},'governance',.2,1],['Establishing a disaster response center in {p}',{order:.3},'order',-.1,2]];
+const ORD_LIB=[['Curfew for minors',.5,{order:2,approval:-.3},['order'],0],['Single-use plastic ban',-.3,{environment:1.5,growth:-.05},['environment'],1],['Market and street vendor regulation',.2,{order:1,approval:-.2},['governance'],1],['Local scholarship program',-.5,{education:1,approval:.3},['education'],2],['Health station network',-.4,{health:1,approval:.3},['health'],2],['Local business tax adjustment',.4,{treasury:.2,approval:-.4},['revenue'],0],['Drainage and flood control',0,{environment:.5,order:.5},['infrastructure'],2],['Anti-littering drive',0,{environment:.6},['environment'],1]];
+const LAWS=[
+[1,'Revised Penal Code','Act No. 3815',1930,['RA 9346 (2006) abolished the death penalty','RA 10951 (2017) adjusted amounts and fines'],'Criminal law',{order:.03}],
+[2,'Civil Code','RA 386',1949,[],'Civil law',{}],
+[3,'Family Code','EO 209',1987,['RA 6809 (1989) set the age of majority at 18','RA 9255 (2004) lets illegitimate children use the father\'s surname'],'Civil law',{}],
+[4,'Labor Code','PD 442',1974,['RA 6715 (1989) strengthened worker protection','RA 10151 (2011) rules on night work'],'Labor',{poverty:-.01}],
+[5,'Local Government Code','RA 7160',1991,['RA 8553 (1998) provincial board composition','RA 9009 (2001) raised the city income requirement','Mandanas-Garcia ruling (2018) widened local shares to all national taxes from 2022'],'Local government',{corruption:-.01}],
+[6,'Omnibus Election Code','BP 881',1985,['RA 6646 (1987) Electoral Reforms Law','RA 7166 (1991) synchronized elections','RA 9369 (2007) automated elections'],'Elections',{}],
+[7,'Party-List System Act','RA 7941',1995,['Atong Paglaum v. COMELEC (2013) opened party-list to more groups'],'Elections',{}],
+[8,'Fair Election Act','RA 9006',2001,[],'Elections',{corruption:-.01}],
+[9,'Anti-Graft and Corrupt Practices Act','RA 3019',1960,['BP 195 (1982) extended the prescription period'],'Governance',{corruption:-.05}],
+[10,'Code of Conduct and Ethical Standards for Public Officials','RA 6713',1989,[],'Governance',{corruption:-.03}],
+[11,'Government Procurement Reform Act','RA 9184',2003,['RA 12009 (2024) New Government Procurement Act revised and replaced it'],'Governance',{corruption:-.05,growth:.01}],
+[12,'National Internal Revenue Code','RA 8424',1997,['RA 9337 (2005) VAT reform','RA 10963 (2017) TRAIN','RA 11534 (2021) CREATE','RA 11976 (2024) Ease of Paying Taxes','RA 12066 (2024) CREATE MORE'],'Taxation',{treasury:.01,growth:.02}],
+[13,'Universal Health Care Act','RA 11223',2019,[],'Health',{health:.08,treasury:-.003}],
+[14,'Free Higher Education Act','RA 10931',2017,[],'Education',{education:.06,treasury:-.003}],
+[15,'Data Privacy Act','RA 10173',2012,[],'Digital',{approval:.005}],
+[16,'Cybercrime Prevention Act','RA 10175',2012,[],'Digital',{order:.02}],
+[17,'Anti-Terrorism Act','RA 11479',2020,['Replaced the Human Security Act (RA 9372)'],'Security',{order:.05,approval:-.02}],
+[18,'Comprehensive Agrarian Reform Law','RA 6657',1988,['RA 9700 (2009) CARPER extension','RA 11953 (2023) New Agrarian Emancipation Act condoned agrarian debts'],'Agriculture',{poverty:-.04}],
+[19,'Agricultural Tariffication Act and Rice Tariffication Law','RA 8178, RA 11203',1996,['RA 11203 (2019) replaced rice import quotas with tariffs','RA 12078 (2024) amended the tariff framework'],'Agriculture',{growth:.01,poverty:-.01}],
+[20,'Ease of Doing Business Act','RA 11032',2018,[],'Business',{corruption:-.03,growth:.02}],
+[21,'Foreign Investments Act','RA 7042',1991,['RA 8179 (1996) amendments','RA 11647 (2022) liberalized foreign investment'],'Business',{growth:.02}],
+[22,'Public Service Act','CA 146',1936,['RA 11659 (2022) opened most public services to foreign ownership'],'Business',{growth:.01}],
+[23,'Retail Trade Liberalization Act','RA 8762',2000,['RA 11595 (2021) lowered the capital requirement'],'Business',{growth:.01}],
+[24,'Anti-Money Laundering Act','RA 9160',2001,['RA 9194 (2003)','RA 10167 (2012)','RA 10365 (2013)','RA 10927 (2017) covered casinos','RA 11521 (2021)'],'Finance',{corruption:-.02}],
+[25,'Disaster Risk Reduction and Management Act','RA 10121',2010,['RA 12076 (2024) Ligtas Pinoy Centers Act added evacuation centers'],'Disaster',{order:.02}],
+[26,'Climate Change Act','RA 9729',2009,['RA 10174 (2012) People\'s Survival Fund'],'Environment',{environment:.03}],
+[27,'Ecological Solid Waste Management Act','RA 9003',2000,[],'Environment',{environment:.03}],
+[28,'Clean Air Act','RA 8749',1999,[],'Environment',{environment:.02,health:.01}],
+[29,'Clean Water Act','RA 9275',2004,[],'Environment',{environment:.02,health:.01}],
+[30,'Magna Carta of Women','RA 9710',2009,[],'Social',{poverty:-.01,approval:.01}],
+[31,'Anti-Violence Against Women and Their Children Act','RA 9262',2004,[],'Social',{order:.01}],
+[32,'Pantawid Pamilyang Pilipino Program Act','RA 11310',2019,[],'Social',{poverty:-.06,treasury:-.003}],
+[33,'Social Security Act of 2018','RA 11199',2018,[],'Social',{poverty:-.02}],
+[34,'Philippine Identification System Act','RA 11055',2018,[],'Governance',{corruption:-.02}],
+[35,'SIM Registration Act','RA 11934',2022,[],'Digital',{order:.01}],
+[36,'Maharlika Investment Fund Act','RA 11954',2023,[],'Finance',{growth:.01,treasury:-.002}],
+[37,'Bangsamoro Organic Law','RA 11054',2018,[],'Autonomy',{order:.02}],
+[38,'Sangguniang Kabataan Reform Act','RA 10742',2015,[],'Youth',{}],
+[39,'Comprehensive Dangerous Drugs Act','RA 9165',2002,['RA 10640 (2014) revised the chain of custody rules'],'Security',{order:.03}],
+[40,'Anti-Agricultural Economic Sabotage Act','RA 12022',2024,[],'Agriculture',{order:.01}],
+[41,'Automatic Income Classification of Local Government Units Act','RA 11964',2023,['DOF Department Order 074-2024 (2024) made the first general reclassification, effective January 1, 2025'],'Local government',{}]];
+const RULES_REF=[
+['House and Senate','Each House determines the rules of its proceedings. Courts enforce them only where they carry out a constitutional requirement.','Art. VI Sec. 16(3); Arroyo v. De Venecia (1998)',false],
+['House and Senate','A majority of each House is a quorum. Without one, only a smaller number may adjourn and compel attendance.','Art. VI Sec. 16(2)',true],
+['House and Senate','The Speaker and the Senate President are elected by a majority of all members.','Art. VI Sec. 16(1)',true],
+['House and Senate','Majority and minority floor leaders are chosen from the ruling bloc and the largest opposition party.','House and Senate rules',true],
+['House and Senate','A bill needs three readings on separate days, and printed copies must be distributed three days before the final vote, unless the President certifies urgency.','Art. VI Sec. 26(2)',true],
+['House','The Committee on Rules schedules bills; committees hold hearings and report bills out.','Rules of the House',true],
+['House','Appropriation, revenue, tariff, public debt, local application, and private bills originate in the House.','Art. VI Sec. 24',true],
+['House','The House impeaches with one-third of all members; the Senate tries and convicts with two-thirds.','Art. XI Sec. 3',true],
+['Bicameral conference','Reconciles differences between House and Senate versions; it may not insert provisions found in neither version.','Rules of both Houses; Abakada v. Ermita (2005)',true],
+['Veto','The President acts within 30 days, may veto, and has a line-item veto on appropriation bills. Two-thirds of all members of each House override.','Art. VI Sec. 27',true],
+['Joint session','Congress meets jointly to review martial law, canvass presidential votes, and hear the State of the Nation Address.','Art. VII Sec. 18 and 23; Senate Rule XIV Sec. 42',true],
+['Commission on Appointments','12 senators and 12 representatives, chaired by the Senate President, confirm Cabinet and commissioner appointments.','Art. VI Sec. 18',true],
+['Electoral tribunals','Three Justices and six legislators decide election protests for each House.','Art. VI Sec. 17',true],
+['Sanggunian (local councils)','A majority is a quorum; the local executive acts on an ordinance within 15 days (10 for barangays); a veto is overridden by two-thirds of all members.','Local Government Code Sec. 53 and 54',true],
+['Sanggunian (local councils)','The provincial board reviews municipal and component city ordinances within 30 days.','Local Government Code Sec. 56',true],
+['COMELEC, COA, CSC','Constitutional commissions decide en banc or in divisions; commissioners serve fixed 7-year terms.','Art. IX',true],
+['Supreme Court','Sits en banc or in divisions of three, five, or seven; Justices retire at 70.','Art. VIII Sec. 4 and 11',true],
+['Judicial and Bar Council','Seven members; submits at least three nominees for each vacancy and the President appoints within 90 days.','Art. VIII Sec. 8 and 9',false],
+['Local government finance','Local governments get 40 percent of national taxes as their share, computed on all national taxes since 2022.','Local Government Code Sec. 284; Mandanas-Garcia (2018)',true]];
+
+const MAX_PROVINCES=100;
+const VERIFIED={11:'Checked against GPPB and LEDAC pages (RA 12009, July 20, 2024)',12:'RA 12066 (November 11, 2024) checked against LEDAC and PCO pages',19:'RA 12078 (December 9, 2024) checked against the Senate library and LEDAC',25:'RA 12076 checked against a PCO release (2024)',36:'RA 11954 (July 18, 2023) checked against LEDAC',40:'RA 12022 checked against a PCO release (2024)',41:'RA 11964 (October 26, 2023) text checked on the Supreme Court E-Library; DOF Department Order 074-2024 checked against news reports'};
+const LEGAL=[{id:'const-1987',type:'constitution',number:'1987',title:'1987 Constitution of the Philippines',date:'1987',status:'amended',amends:[],amendedBy:[],repeals:[],repealedBy:[],institution:'Constitutional Commission',topic:'Fundamental law',provisions:MECH.map(m=>({ref:(m.match(/^Art\. [IVXL]+[^:]*/)||[''])[0],summary:m.replace(/^Art\. [^:]*:\s*/,'')})),gameMechanics:['Every provision listed is enforced by the simulation or editable as a constitutional setting.'],source:'Official Gazette text of the 1987 Constitution; summaries are paraphrased',real:true}]
+.concat(LAWS.map(l=>({id:'law-'+l[0],lawId:l[0],type:/^Act|^CA|^PD|^EO|^BP/.test(l[2])?'code or decree':'republic act',number:l[2],title:l[1],date:String(l[3]),status:l[0]==11?'superseded':l[4].length?'amended':'active',amends:[],amendedBy:l[4],repeals:[],repealedBy:l[0]==11?['RA 12009 (2024)']:[],institution:'Congress',topic:l[5],provisions:[],gameMechanics:Object.keys(l[6]).length?['While in force: '+Object.keys(l[6]).map(k=>k+' '+(l[6][k]>0?'+':'')+l[6][k]+' per month').join(', ')]:[],source:VERIFIED[l[0]]||'Compiled from general knowledge; confirm on lawphil.net or officialgazette.gov.ph',verified:!!VERIFIED[l[0]],real:true})));
