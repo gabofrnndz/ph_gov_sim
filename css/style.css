@@ -36,3 +36,8 @@ dialog label{display:block;margin:8px 0 2px;font-size:.88rem;color:var(--mut)}di
 .sub{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.sub button[aria-pressed=true]{background:var(--sea);color:#fff}
 dialog{max-height:90vh;overflow:auto}dialog label{display:block}dialog input[type=checkbox]{width:auto}
 canvas.paint{touch-action:none;cursor:crosshair}
+
+nav{position:sticky;top:0;z-index:5;background:var(--bg);padding-top:6px;border-bottom:1px solid var(--line)}
+.crumbs{margin:2px 0 8px;font-size:.92rem}.crumbs button{padding:2px 8px}
+.card:hover{border-color:var(--sea)}.sub input{flex:1}
+@media(max-width:600px){main{padding:8px 10px 32px}.date{font-size:1.05rem}h1{font-size:1.25rem}}
