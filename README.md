@@ -51,3 +51,21 @@ The calendar runs one day at a time and shows Month day, year. It keeps running 
 
 - This is a plain JavaScript project, not TypeScript. Checks were done with a simulated browser run, not a type checker.
 - Some thresholds were inferred from partial texts (see Settings > Income classification).
+
+## Election files and calendar (Omnibus Election Code)
+
+The Elections tab has a calendar (filing of certificates of candidacy, tentative and certified lists, ballot face template, campaign periods, canvass, proclamation, statements of contributions and expenses) and four election files plus voter turnout:
+
+- Tentative List of Candidates (national, province, or city/municipality)
+- Ballot Face Template (per city or municipality; names appear as Last Name, First Name (party acronym or first three letters))
+- Certificate of Canvass (national, province, or city/municipality, with registered voters, votes cast, and turnout)
+- List of Elected Local Candidates (all or one province)
+- Voter Turnout (registered voters versus ballots cast by area and over time)
+
+Candidate lists are drawn up when filing closes. Votes are computed per candidate and per province. Legislative district votes use each district's own registered voters, and national totals equal the sum of the provinces.
+
+Limits: barangay and SK elections have a calendar and results counts but no candidate-level files. Section references checked against the fetched Code text: 3, 11, 15, 16, 30, 59, 72, 75, 77, 78, 80, 99, 107. Sections 39, 40, 46, and 89, the campaign periods, and the exact dates COMELEC would set are from general knowledge or are simulation settings; confirm before citing.
+
+## Structure operations (Edit mode)
+
+On the Map tab, the Edit structure button (province, municipality, or barangay) offers divide, merge, abolish, and move. Each runs through a plebiscite unless you tick the scenario override. Tools: paint barangay boundary, new barangay, group barangays into a municipality or city, group municipalities into a province, group provinces into a region. Independent component cities are a flag on cities; their voters do not vote for provincial officials. Barangay and SK terms follow RA 12326 (five years, two consecutive terms for barangay officials, one for SK).
