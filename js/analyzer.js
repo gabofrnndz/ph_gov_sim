@@ -21,7 +21,8 @@ const CP=[[/president\w*.{0,50}?(\d+)[- ]year/i,'presTerm',m=>+m[1]],[/president
 const bl=(v,a,b)=>Math.max(a,Math.min(b,v));
 function clean(x){x=x||{};const e={};for(const k in SL){const v=+((x.effects||x.e||{})[k]);if(isFinite(v)&&v)e[k]=+bl(v,k=='treasury'||k=='growth'?-1:-5,k=='treasury'||k=='growth'?1:5).toFixed(2)}
  const c={};for(const k in CONB){const raw=(x.constitutional||x.c||{})[k];if(raw!=null&&isFinite(+raw))c[k]=+bl(+raw,CONB[k][0],CONB[k][1])}
- return{i:+bl(+(x.ideology!=null?x.ideology:x.i)||0,-1,1).toFixed(2),tags:(x.tags||[]).filter(t=>INT.includes(t)).slice(0,4).concat(Object.keys(c).length?['governance']:[]).filter((t,k,a)=>a.indexOf(t)==k),e,c:Object.keys(c).length?c:undefined,summary:String(x.summary||'').slice(0,300),notes:(x.notes||[]).map(n=>String(n).slice(0,240)).slice(0,5)}}
+ const fn=[];(x.functions||x.fn||[]).slice(0,6).forEach(f=>{if(!f||typeof f!='object')return;if(f.t=='rule'&&RB[f.k]&&isFinite(+f.v))fn.push({t:'rule',k:f.k,v:+bl(+f.v,RB[f.k][0],RB[f.k][1])});else if(f.t=='bud'&&Object.values(BUDKW).includes(f.line)&&isFinite(+f.pct))fn.push({t:'bud',line:f.line,pct:+bl(+f.pct,-50,100)});else if(f.t=='dept'&&(f.add||f.remove))fn.push(f.add?{t:'dept',add:String(f.add).slice(0,60)}:{t:'dept',remove:String(f.remove).slice(0,60)});else if(f.t=='law'&&typeof LAWS!='undefined'&&LAWS.some(l=>l[0]==+f.id))fn.push({t:'law',id:+f.id,on:!!f.on});else if(f.t=='ie'&&isFinite(+f.pct))fn.push({t:'ie',pct:+bl(+f.pct,-10,10)})});
+ return{fn:fn.length?fn:undefined,i:+bl(+(x.ideology!=null?x.ideology:x.i)||0,-1,1).toFixed(2),tags:(x.tags||[]).filter(t=>INT.includes(t)).slice(0,4).concat(Object.keys(c).length?['governance']:[]).filter((t,k,a)=>a.indexOf(t)==k),e,c:Object.keys(c).length?c:undefined,summary:String(x.summary||'').slice(0,300),notes:(x.notes||[]).map(n=>String(n).slice(0,240)).slice(0,5)}}
 function localAnalyze(text){const hits=[],e={},tags=[],notes=[];let ideo=0,sg=NEG.test(text)?-1:1;
  const pc=text.match(/(\d+(?:\.\d+)?)\s*(%|percent)/i),k=Math.max(.5,Math.min(2.5,(/double/i.test(text)?1.6:/triple/i.test(text)?2.2:/pilot|limited|small/i.test(text)?.6:1)*(pc?1+ +pc[1]/50:1)*(/universal|nationwide|all /i.test(text)?1.2:1)));
  LEX.forEach(([re,tg,ef,id,fl])=>{if(re.test(text)){hits.push(1);const s=fl?sg:1;tg.forEach(t=>tags.includes(t)||tags.push(t));for(const q in ef)e[q]=(e[q]||0)+ef[q]*s*k;ideo+=id*s}});
@@ -32,7 +33,18 @@ function localAnalyze(text){const hits=[],e={},tags=[],notes=[];let ideo=0,sg=NE
  if(/martial law/i.test(text))notes.push('Martial law is limited to 60 days and is subject to congressional and judicial review (Art. VII Sec. 18).');
  if(/province|municipalit|city|barangay/i.test(text)&&/creat|abolish|merge|divid/i.test(text))notes.push('Creating, merging, or abolishing local units needs the Local Government Code criteria and a plebiscite (Art. X Sec. 10). The Map tool does this directly.');
  if(/(ban|prohibit|censor|restrict).{0,40}(speech|press|assembly|religion|protest)/i.test(text))notes.push('Likely unconstitutional under the Bill of Rights (Art. III); the Supreme Court may strike it down.');
- if(!hits.length&&!Object.keys(c).length)notes.push('The built-in analyzer could not tell what this article does, so it has no measurable effect.');
- return clean({ideology:hits.length?ideo/hits.length:0,tags:tags.length?tags:['governance'],effects:e,constitutional:c,notes,summary:hits.length?'Matched '+hits.length+' policy area(s).':''})}
+const fn=[];let m;
+ if((m=text.match(/(?:create|establish|set up)\s+(?:a |the )?(?:new )?department of ([A-Za-z&, ]{3,50}?)(?:[.;]| to | and |,|$)/i)))fn.push({t:'dept',add:m[1].trim()});
+ if((m=text.match(/(?:abolish|dissolve|eliminate)\s+(?:the )?department of ([A-Za-z&, ]{3,50}?)(?:[.;]| and |,|$)/i)))fn.push({t:'dept',remove:m[1].trim()});
+ if((m=text.match(/(increase|raise|boost|expand|cut|reduce|slash)[^.]{0,40}?(education|health|social welfare|welfare|infrastructure|defense|defence|agriculture|environment|governance)[^.]{0,40}?(\d+)\s*(%|percent)/i)))fn.push({t:'bud',line:BUDKW[m[2].toLowerCase()],pct:(/cut|reduce|slash/i.test(m[1])?-1:1)*+m[3]});
+ if((m=text.match(/(?:internal revenue allotment|local (?:government )?share)[^.]{0,60}?(\d+)\s*(%|percent)/i)))fn.push({t:'rule',k:'ira',v:+m[1]});
+ if((m=text.match(/quorum[^.]{0,50}?(\d+)\s*(%|percent)/i)))fn.push({t:'rule',k:'quorum',v:+m[1]});
+ if((m=text.match(/voting age[^.]{0,30}?(\d+)/i)))fn.push({t:'rule',k:'votingAge',v:+m[1]});
+ if((m=text.match(/barangay[^.]{0,60}?term[^.]{0,30}?(\d+)\s*years?/i)))fn.push({t:'rule',k:'brgyTerm',v:+m[1]});
+ if(typeof LAWS!='undefined'){const rp=/repeal|abolish/i.test(text),rs=/restore|reinstate/i.test(text);if(rp||rs)LAWS.forEach(l=>{if(text.toLowerCase().includes(l[1].toLowerCase().slice(0,22)))fn.push({t:'law',id:l[0],on:rs&&!rp})})}
+ if(/(tax|fee|permit|levy)/i.test(text)&&/(increase|raise|impose)/i.test(text))fn.push({t:'ie',pct:3});else if(/(tax|fee|permit|levy)/i.test(text)&&/(reduce|cut|exempt|lower)/i.test(text))fn.push({t:'ie',pct:-3});
+ if(fn.length)notes.push('Game functions changed: '+fn.map(f=>f.t=='rule'?`rule ${f.k}`:f.t=='bud'?`budget ${f.line}`:f.t=='dept'?'executive departments':f.t=='law'?'statute book':'local income').join(', ')+'.');
+ if(!hits.length&&!Object.keys(c).length&&!fn.length)notes.push('The built-in analyzer could not tell what this article does, so it has no measurable effect.');
+ return clean({functions:fn,ideology:hits.length?ideo/hits.length:0,tags:tags.length?tags:['governance'],effects:e,constitutional:c,notes,summary:hits.length?'Matched '+hits.length+' policy area(s).':''})}
 async function analyzeBill(title,arts){try{const ac=new AbortController(),t=setTimeout(()=>ac.abort(),15000),r=await fetch('/api/analyze',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({title,articles:arts}),signal:ac.signal});clearTimeout(t);
  if(r.ok){const j=await r.json();if(j&&Array.isArray(j.articles)&&j.articles.length==arts.length)return{src:'Claude',arts:j.articles.map(clean)}}}catch(e){}return{src:'the built-in analyzer',arts:arts.map(localAnalyze)}}
