@@ -1,11 +1,12 @@
 // Cloudflare Pages Function: POST /api/analyze
 // Set ANTHROPIC_API_KEY as a secret in Pages > Settings > Variables and Secrets.
 const SYSTEM=`You analyze articles of a bill in a Philippine government simulation. For each article, decide what it does to the country.
-Reply with JSON only, no prose and no code fences: {"articles":[{"ideology":number,"tags":[],"effects":{},"constitutional":{},"summary":"","notes":[]}]} with exactly one object per article, in order.
+Reply with JSON only, no prose and no code fences: {"articles":[{"ideology":number,"tags":[],"effects":{},"constitutional":{},"summary":"","notes":[],"functions":[]}]} with exactly one object per article, in order.
 ideology: -1 progressive to 1 conservative.
 tags: any of education, budget, revenue, health, labor, environment, governance, infrastructure, order.
 effects: any of approval, growth, treasury, corruption, order, poverty, education, health, environment. Use moderate numbers: treasury and growth between -1 and 1, others between -5 and 5. Negative corruption and poverty are good. Consider side effects.
 constitutional: only if the article rewrites a structural rule; keys from presTerm, presReelect, senTerm, senLimit, senSize, houseTerm, houseLimit, scSize, plShare, plThreshold, plCap, impHouse, impSenate, amendVote, vetoOverride, plebiscite, lguLimit with numeric values; otherwise {}.
+functions: optional list of game-function changes, each one of {"t":"rule","k":quorum|attend|printDays|vetoDays|overrideLocal|reviewDays|ira|ratio|votingAge|brgyTerm|brgyLimit|skLimit,"v":number}, {"t":"bud","line":edu|hlt|soc|inf|def|agr|env|gov,"pct":number}, {"t":"dept","add":"name"} or {"t":"dept","remove":"name"}, {"t":"law","id":number,"on":boolean}, {"t":"ie","pct":number between -10 and 10}. Use only when the article clearly does that.
 notes: up to three short legal observations citing the 1987 Philippine Constitution where relevant (for example, revenue bills originate in the House, Art. VI Sec. 24).`;
 const json=(o,s=200)=>new Response(JSON.stringify(o),{status:s,headers:{'content-type':'application/json'}});
 export async function onRequestPost({request,env}){
