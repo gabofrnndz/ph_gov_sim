@@ -8,7 +8,7 @@ const openDay=(y,y0)=>{const w=new Date(Date.UTC(y,6,1)).getUTCDay();return dn(y
 const inSession=()=>{const y=yr(),op=openDay(y,S.y0);return S.dt>=op||S.dt<op-30};
 const log=t=>{S.news.unshift(`${dstr()}: ${t}`);S.news.length=Math.min(S.news.length,80)};
 const z=()=>S.parties.map(()=>0);
-function wt(e,inc){const mood=(S.stats.approval-50)/100;return e.lean.map((x,i)=>Math.pow(x*(1+(i==S.pres.party?mood:-mood/4))*(i==inc?1.3:1),1.5))}
+const wt=(e,inc)=>wtV(e,Array.isArray(e.mun)?e.id:e.prov,inc);
 function re(o,w,lim,mk,lo){const p=sample(w);if(p==o.party&&rnd()<.6&&(o.terms||1)<lim&&(!lo||o.by==null||curY()-o.by>=lo)){o.terms=(o.terms||1)+1;return o}return mk?mk(p):{name:nm(),party:p,terms:1}}
 const houseCounts=()=>{const c=z();S.house.forEach(r=>c[r.party]++);return c};
 const senCounts=()=>tally(S.senate).slice(0,S.parties.length);
@@ -75,24 +75,41 @@ function impeach(sec){if(!inSession()){log('Congress is in recess; no impeachmen
 function rally(){S.house.concat(S.senate).forEach(m=>{if(m.party==S.player.party)m.trust=cl(m.trust+8,0,100)});S.crisis=Math.max(0,S.crisis-15);log('You rally your lawmakers behind the government.')}
 function fixBg(){const M=S.map;if(!M.bg)initBrgyMap(S);const bad={};for(let i=0;i<W*H;i++){const m=M.mun[i];if(m>=0&&M.land[i]){const mm=S.munis[m];if(mm&&(M.bg[i]<0||M.bg[i]>=mm.brgy.length))(bad[m]=bad[m]||[]).push(i)}}
  for(const mi in bad){const m=S.munis[mi],cb=bgCells(m),cen=cb.map(c=>c.length?[c.reduce((a,i)=>a+i%W,0)/c.length,c.reduce((a,i)=>a+(i/W|0),0)/c.length]:null);if(!cen.some(Boolean)){layoutBrgys(S,m);continue}bad[mi].forEach(i=>{const x=i%W,y=i/W|0;let b=0,bd=1e9;cen.forEach((q,j)=>{if(q){const d=(q[0]-x)**2+(q[1]-y)**2;if(d<bd){bd=d;b=j}}});M.bg[i]=b})}}
-function syncGeo(){fixBg();const M=S.map,n0=S.house.filter(r=>r.prov>=0).length;for(let i=0;i<W*H;i++)if(M.land[i]&&M.mun[i]>=0)M.prov[i]=S.munis[M.mun[i]].prov;
+function syncGeo(){fixBg();pruneBrgys(S);const M=S.map,n0=S.house.filter(r=>r.prov>=0).length;for(let i=0;i<W*H;i++)if(M.land[i]&&M.mun[i]>=0)M.prov[i]=S.munis[M.mun[i]].prov;
  S.provs.forEach(p=>p.mun=[]);S.munis.forEach(m=>{S.provs[m.prov].mun.push(m.id);const t=m.huc?12:m.city?10:8;while(m.sb.length<t)m.sb.push(person(m.lean));m.sb.length=t});
  S.provs.forEach(fixDistricts);S.munis.forEach(m=>{if(m.huc)m.city=true;const t=lguType(m);if(!m.ic||!m.ic.incomeClass.endsWith(t))reclassOne(m,t)});S.provs.forEach(fixProvDistricts);fixCaps();S.provs.forEach(p=>{const have=S.house.filter(r=>r.prov==p.id).length;for(let k=have;k<p.dist;k++)S.house.push({prov:p.id,d:k+1,...mem(sample(p.lean),S.parties)});let rm=have-p.dist;for(let i=S.house.length-1;i>=0&&rm>0;i--)if(S.house[i].prov==p.id){S.house.splice(i,1);rm--}});
  if(S.house.filter(r=>r.prov>=0).length!=n0){rebuildPL();rebuildCmt();S.speaker=Math.min(S.speaker,S.house.length-1)}}
 const hist=(e,o)=>{e.hist=e.hist||[];e.hist.unshift(`${yr()}: ${o.name} (${S.parties[o.party].name})`);e.hist.length=Math.min(e.hist.length,4)};
 const regV=pop=>Math.round(pop*Math.max(.4,.62-(((S.rules||{}).votingAge||18)-18)*.03));
-function gc(incs,seats,wv,lim,lo){const out=[];(incs||[]).forEach(o=>{if(!o)return;const ok=(o.terms||1)<lim&&(!lo||o.by==null||curY()-o.by>=lo);if(ok&&rnd()<.85)out.push({name:o.name,first:o.first,last:o.last,party:o.party,inc:1,w:wv[o.party]*(1.2+rnd()*.5)})});
- const extra=Math.max(seats+1-out.length,seats==1?1+Math.floor(rnd()*3):Math.ceil(seats*.5)+1);for(let i=0;i<extra;i++){const p=sample(wv),n=cName(p);out.push({...n,party:p,w:wv[p]*(.5+rnd())})}return out}
-function planRaces(){const P=S.parties,Y=yr(),presYr=S.lastPresY==null||Y-S.lastPresY>=S.con.presTerm,nw=natW(),lg=S.con.lguLimit,wv=e=>wt(e,-1);
- const F={Y,pres:presYr,pub:false,P:P.map(p=>({name:p.name,color:p.color,acr:p.acr||''})),nat:{},prov:{},mun:{}};
- if(presYr){const inc=S.con.presReelect>=S.pres.terms;F.nat.pres=P.map((p,i)=>({...(inc&&i==S.pres.party?{name:S.pres.name,first:S.pres.first,last:S.pres.last,inc:1}:cName(i)),party:i,w:nw[i]*(.8+rnd()*.4)}));F.nat.vp=P.map((p,i)=>({...cName(i),party:i,w:nw[i]*(.8+rnd()*.4)}))}
+const scopeF=(i,pid)=>{const P=S.parties[i];if(!P||!P.scope||P.scope=='national')return 1;const p=pid!=null&&pid>=0?S.provs[pid]:null;if(!p)return .0001;if(P.scope=='regional')return p.reg==P.area?3:.0001;return p.id==P.area?4:.0001};
+const allowedP=(i,pid,nat)=>{const P=S.parties[i];if(!P)return false;return nat?(P.scope||'national')=='national':scopeF(i,pid)>.01};
+function campFactor(i,pid){const c=S.camp;if(!c)return 1;return Math.max(.2,1+.025*Math.min(10,(c.org[i]&&c.org[i][pid])||0)+.015*Math.min(10,c.media[i]||0)+(c.mom[i]||0)+(((c.momP[pid]||{})[i])||0))}
+function wtV(e,pid,inc){const P=S.parties,mood=(S.stats.approval-50)/100,pv=pid!=null&&pid>=0?S.provs[pid]:e,sh=pv&&pv.shr;return e.lean.map((x,i)=>{if(!P[i])return 0;let w=Math.pow(x,1.5);if(sh&&sh[i]>0)w*=Math.pow(sh[i]*P.length,.5);w*=1+(i==S.pres.party?mood:-mood/4);if(i==inc)w*=1.3;w*=campFactor(i,pid==null?-1:pid);w*=scopeF(i,pid);return Math.max(1e-6,w)})}
+const mkC=i=>({...cName(i),party:i,r:.5+rnd(),sk:+rnd().toFixed(2)});
+function gc(incs,seats,wv,lim,lo,pid,nat){const out=[],used=new Set();
+ (incs||[]).forEach(o=>{if(!o)return;const ok=(o.terms||1)<lim&&(!lo||o.by==null||curY()-o.by>=lo);if(ok&&rnd()<.85){out.push({name:o.name,first:o.first,last:o.last,party:o.party,inc:1,r:1.2+rnd()*.5,sk:+rnd().toFixed(2)});if(seats==1)used.add(o.party)}});
+ const n=wv.length,ws=norm(wv.map((x,i)=>allowedP(i,pid,nat)?x:0)),T=seats+Math.ceil(seats*.6)+1;
+ if(seats==1){for(let i=0;i<n;i++){if(used.has(i)||!allowedP(i,pid,nat))continue;const pf=i==S.player.party?1:cl(.3+4*ws[i],.12,.95);if(rnd()<pf)out.push(mkC(i))}}
+ else{const a=alloc(Math.max(0,T-out.length),ws);a.forEach((k,i)=>{for(let j=0;j<k;j++)out.push(mkC(i))})}
+ while(out.length<(seats==1?2:seats+1))out.push(mkC(sample(ws.some(x=>x>0)?ws:wv)));return out}
+function parseNm(s){s=String(s).trim();const c=s.indexOf(','),i=s.indexOf(' ');let f,l;if(c>0){l=s.slice(0,c).trim();f=s.slice(c+1).trim()}else if(i>0){f=s.slice(0,i);l=s.slice(i+1).trim()}else{f=s;l=''}return{name:(f+' '+l).trim(),first:f,last:l}}
+function setSlateList(L,party,names,holders){for(let k=L.length-1;k>=0;k--)if(L[k].party==party)L.splice(k,1);names.forEach(n0=>{const n=parseNm(n0),h=(holders||[]).find(o=>o&&o.name==n.name);L.push({...n,party,r:1.3+rnd()*.4,sk:+rnd().toFixed(2),inc:h?1:0,slot:h&&h.slot!=null?h.slot:undefined,slated:1})})}
+function applySlate(F){const sl=S.slate||{},pp=S.player.party;if(!F||!pp&&pp!==0)return;
+ if(sl.pres&&F.nat.pres)setSlateList(F.nat.pres,pp,[sl.pres],[S.pres]);if(sl.vp&&F.nat.vp)setSlateList(F.nat.vp,pp,[sl.vp],[S.vp]);
+ if(sl.sen&&sl.sen.length&&F.nat.sen)setSlateList(F.nat.sen.c,pp,sl.sen,F.nat.sen.slots.map(i=>({...S.senate[i],slot:i})));
+ Object.keys(sl).forEach(key=>{const [k,id]=key.split(':');if(id==null)return;if(k=='gov'&&F.prov[id])setSlateList(F.prov[id].gov,pp,[sl[key]],[S.provs[id].gov]);else if(k=='vg'&&F.prov[id])setSlateList(F.prov[id].vg,pp,[sl[key]],[S.provs[id].vg]);else if(k=='my'&&F.mun[id])setSlateList(F.mun[id].my,pp,[sl[key]],[S.munis[id].mayor]);else if(k=='vm'&&F.mun[id])setSlateList(F.mun[id].vm,pp,[sl[key]],[S.munis[id].vm])})}
+const slateOpen=()=>{if(!S.cands)return true;const pr=S.cal&&S.cal.ev.find(e=>e.key=='print');return !pr||S.dt<pr.d};
+function planRaces(){const P=S.parties,Y=yr(),presYr=S.lastPresY==null||Y-S.lastPresY>=S.con.presTerm,nw=natW(),lg=S.con.lguLimit,wv=e=>wt(e,-1),natP=P.map((p,i)=>allowedP(i,null,true)?i:-1).filter(i=>i>=0);
+ const F={Y,pres:presYr,pub:false,P:P.map(p=>({name:p.name,color:p.color,acr:p.acr||'',scope:p.scope||'national'})),nat:{},prov:{},mun:{}};
+ if(presYr){const inc=S.con.presReelect>=S.pres.terms;F.nat.pres=natP.map(i=>({...(inc&&i==S.pres.party?{name:S.pres.name,first:S.pres.first,last:S.pres.last,inc:1}:cName(i)),party:i,r:.8+rnd()*.4,sk:+rnd().toFixed(2)}));F.nat.vp=natP.map(i=>({...cName(i),party:i,r:.8+rnd()*.4,sk:+rnd().toFixed(2)}))}
  const full=S.con.senTerm<=S.con.houseTerm,c=S.elections.length%2,slots=[];S.senate.forEach((s,i)=>{if(full||s.cls==c)slots.push(i)});const n=slots.length,per=Math.max(4,Math.ceil(n/2)),sc=[];
- P.forEach((p,pi)=>{for(let k=0;k<per;k++)sc.push({...cName(pi),party:pi,w:nw[pi]*(.4+rnd()*1.2)})});slots.forEach(i=>{const s=S.senate[i];if((s.terms||1)<S.con.senLimit)sc.push({name:s.name,first:s.first,last:s.last,party:s.party,inc:1,w:nw[s.party]*(.8+rnd()*1.2),slot:i})});
+ natP.forEach(pi=>{for(let k=0;k<per;k++)sc.push({...cName(pi),party:pi,r:.4+rnd()*1.2,sk:+rnd().toFixed(2)})});slots.forEach(i=>{const s=S.senate[i];if((s.terms||1)<S.con.senLimit&&allowedP(s.party,null,true))sc.push({name:s.name,first:s.first,last:s.last,party:s.party,inc:1,r:.8+rnd()*1.2,sk:+rnd().toFixed(2),slot:i})});
  F.nat.sen={seats:n,slots,c:sc};F.nat.pl=S.plg.map(g=>{ensureNominees(g,5);return{name:g.name,kind:g.kind,party:g.party,nominees:g.nominees.map(x=>x.name)}});
- S.provs.forEach(p=>{const w=wv(p),e={name:p.name,reg:p.reg,gov:gc([p.gov],1,w,lg,23),vg:gc([p.vg],1,w,lg,23),sp:[],hr:[]};(p.pds||[]).forEach(d=>{const inc=p.sp.filter(o=>o.pd==d.n);if(inc.length)e.sp.push({pd:d.n,seats:inc.length,c:gc(inc,inc.length,w,lg,18)})});
-  (p.districts||[]).forEach(d=>{const r=S.house.find(h=>h.prov==p.id&&h.d==d.n);e.hr.push({d:d.n,munis:d.munis.map(i=>S.munis[i]?S.munis[i].name:''),c:gc([r],1,w,S.con.houseLimit,25)})});F.prov[p.id]=e});
- S.munis.forEach(m=>{const w=wv(m);F.mun[m.id]={name:m.name,prov:m.prov,huc:m.huc,icc:m.icc,city:m.city,my:gc([m.mayor],1,w,lg,m.city?23:21),vm:gc([m.vm],1,w,lg,m.city?23:21),sb:{seats:m.sb.length,c:gc(m.sb,m.sb.length,w,lg,18)}}});
- S.cands=F;return F}
+ S.provs.forEach(p=>{const w=wv(p),e={name:p.name,reg:p.reg,gov:gc([p.gov],1,w,lg,23,p.id),vg:gc([p.vg],1,w,lg,23,p.id),sp:[],hr:[]};(p.pds||[]).forEach(d=>{const inc=p.sp.filter(o=>o.pd==d.n);if(inc.length)e.sp.push({pd:d.n,seats:inc.length,c:gc(inc,inc.length,w,lg,18,p.id)})});
+  (p.districts||[]).forEach(d=>{const r=S.house.find(h=>h.prov==p.id&&h.d==d.n);e.hr.push({d:d.n,munis:d.munis.map(i=>S.munis[i]?S.munis[i].name:''),c:gc([r],1,w,S.con.houseLimit,25,p.id)})});F.prov[p.id]=e});
+ S.munis.forEach(m=>{const w=wv(m);F.mun[m.id]={name:m.name,prov:m.prov,huc:m.huc,icc:m.icc,city:m.city,my:gc([m.mayor],1,w,lg,m.city?23:21,m.prov),vm:gc([m.vm],1,w,lg,m.city?23:21,m.prov),sb:{seats:m.sb.length,c:gc(m.sb,m.sb.length,w,lg,18,m.prov)}}});
+ applySlate(F);S.cands=F;return F}
+const setW=(L,w)=>L.forEach(c=>{c.w=Math.max(1e-9,(w[c.party]||1e-6)*(c.r||1))});
 const FEMS=typeof FEM!='undefined'?FEM:new Set();
 function elect(){if(!S.cands||S.cands.Y!=yr())planRaces();const F=S.cands,P=S.parties,Y=yr(),presYr=F.pres,pend={provs:[],munis:[],house:[],senate:[],pres:null,vp:null},nw=natW();
  const mreg=S.munis.map(m=>regV(m.pop)),mbal=mreg.map(r=>Math.round(r*cl(.77+(rnd()-.5)*.12,.55,.93))),mval=mbal.map(b=>Math.round(b*.97)),sum=(ids,A)=>ids.reduce((s,i)=>s+A[i],0);
@@ -102,28 +119,31 @@ function elect(){if(!S.cands||S.cands.Y!=yr())planRaces();const F=S.cands,P=S.pa
  const off=(x,hold,lo)=>{const h=(hold||[]).find(o=>o&&o.name==x.name);if(x.inc&&h){h.terms=(h.terms||1)+1;return h}return{name:x.name,first:x.first,last:x.last,party:x.party,terms:1,by:curY()-(lo+Math.floor(rnd()*30)),sex:FEMS.has(x.first)?'F':'M',occ:pick(OCC)}};
  const matrix=(cands,k)=>{const pv=[],tot=cands.map(()=>0);S.provs.forEach(p=>{const wn=norm(wt(p,-1)),w=cands.map(c=>c.w*((wn[c.party]/(nw[c.party]||1))||1)),v=alloc(Math.round(valP[p.id]*k),norm(w));v.forEach((x,i)=>tot[i]+=x);pv.push(v)});cands.forEach((c,i)=>{c.votes=tot[i];c.ix=i});cands.sort((a,b)=>b.votes-a.votes);return pv};
  S.provs.forEach(p=>{const e=F.prov[p.id]||{},elig=p.mun.filter(id=>!(S.munis[id].huc||S.munis[id].icc)),vg0=sum(elig,mval);
-  const gw=run(e.gov,1,vg0)[0],vw=run(e.vg,1,vg0)[0],gov=off(gw,[p.gov],23),vg=off(vw,[p.vg],23),sp=[];
+  setW(e.gov,wt(p,-1));setW(e.vg,wt(p,-1));(e.sp||[]).forEach(r=>setW(r.c,wt(p,-1)));const gw=run(e.gov,1,vg0)[0],vw=run(e.vg,1,vg0)[0],gov=off(gw,[p.gov],23),vg=off(vw,[p.vg],23),sp=[];
   (e.sp||[]).forEach(r=>{const pds=(p.pds||[]).find(d=>d.n==r.pd),val=pds?sum(pds.munis,mval):vg0;run(r.c,r.seats,val).forEach(x=>{const o=off(x,p.sp,18);o.pd=r.pd;sp.push(o)});r.valid=val});
   while(sp.length<p.sp.length)sp.push({...person(p.lean,18),pd:1});sp.length=Math.max(1,p.sp.length);
   e.reg=sum(p.mun,mreg);e.bal=sum(p.mun,mbal);e.val=valP[p.id];e.elect=vg0;e.name=p.name;pend.provs.push({gov,vg,sp});R.gov[gov.party]++;R.vg[vg.party]++;sp.forEach(o=>R.sp[o.party]++);R.govRows.push({loc:p.name,name:gov.name,party:gov.party,votes:gw.votes,valid:vg0})});
- S.munis.forEach(m=>{const e=F.mun[m.id]||{},k=m.huc?'huc':m.city?'cc':'mc',val=mval[m.id],mw=run(e.my,1,val)[0],vm=run(e.vm,1,val)[0],mayor=off(mw,[m.mayor],m.city?23:21),vv=off(vm,[m.vm],m.city?23:21),sb=run(e.sb.c,e.sb.seats,val).map(x=>off(x,m.sb,18));
+ S.munis.forEach(m=>{const e=F.mun[m.id]||{},k=m.huc?'huc':m.city?'cc':'mc',val=mval[m.id],_s=(setW(e.my,wt(m,-1)),setW(e.vm,wt(m,-1)),setW(e.sb.c,wt(m,-1))),mw=run(e.my,1,val)[0],vm=run(e.vm,1,val)[0],mayor=off(mw,[m.mayor],m.city?23:21),vv=off(vm,[m.vm],m.city?23:21),sb=run(e.sb.c,e.sb.seats,val).map(x=>off(x,m.sb,18));
   while(sb.length<m.sb.length)sb.push(person(m.lean,18));e.reg=mreg[m.id];e.bal=mbal[m.id];e.val=val;pend.munis.push({mayor,vm:vv,sb});R.my[mayor.party]++;sb.forEach(o=>R[k][o.party]++);if(m.huc)R.hucRows.push({loc:m.name+' (HUC)',name:mayor.name,party:mayor.party,votes:mw.votes,valid:val})});
  const hc=z(),hi={};S.house.forEach((r,i)=>{if(r.prov>=0)hi[r.prov+':'+r.d]=i});
- S.provs.forEach(p=>{const e=F.prov[p.id]||{};(e.hr||[]).forEach(hr=>{const d=(p.districts||[]).find(x=>x.n==hr.d),val=d?sum(d.munis,mval):valP[p.id],reg=d?sum(d.munis,mreg):0,w=run(hr.c,1,val)[0],i=hi[p.id+':'+hr.d],r=S.house[i];hr.reg=reg;hr.val=val;
+ S.provs.forEach(p=>{const e=F.prov[p.id]||{};(e.hr||[]).forEach(hr=>{const d=(p.districts||[]).find(x=>x.n==hr.d),val=d?sum(d.munis,mval):valP[p.id],reg=d?sum(d.munis,mreg):0,_s=setW(hr.c,wt(p,-1)),w=run(hr.c,1,val)[0],i=hi[p.id+':'+hr.d],r=S.house[i];hr.reg=reg;hr.val=val;
   const f=w.inc&&r&&r.name==w.name?(r.terms=(r.terms||1)+1,r):{...mem(w.party,P,25,true),name:w.name,first:w.first,last:w.last,prov:p.id,d:hr.d};if(i!=null)pend.house.push([i,f]);hc[f.party]++;R.houseRows.push({loc:`${p.name}, District ${hr.d}`,name:f.name,party:f.party,votes:w.votes,valid:val,reg})})});
  S.plg.forEach(g=>g.pop=+Math.max(.01,g.pop*(.8+rnd()*.4)).toFixed(3));
  const base=S.plg.map(g=>g.pop*(.85+rnd()*.3)),plv=S.plg.map(()=>0),plpv=[];S.provs.forEach(p=>{const v=alloc(valP[p.id],norm(S.plg.map((g,i)=>base[i]*(g.kind=='regional'?(g.region==p.reg?2.5:.4):1))));v.forEach((x,i)=>plv[i]+=x);plpv.push(v)});
  const plw=norm(plv),dcount=S.house.filter(r=>r.prov>=0).length;pend.pls=plSeats(S,Math.floor(dcount*S.con.plShare/(100-S.con.plShare)),plw);pend.pls.forEach((n,i)=>hc[S.plg[i].party>=0?S.plg[i].party:(S.plg[i].bloc||0)]+=n);
- const slots=F.nat.sen.slots,n=slots.length,sc=F.nat.sen.c,spv=matrix(sc,n*.9);
+ setW(F.nat.sen.c,nw);const slots=F.nat.sen.slots,n=slots.length,sc=F.nat.sen.c,spv=matrix(sc,n*.9);
  const nsc=S.senate.slice(),sen=[];sc.slice(0,n).forEach((x,k)=>{const i=slots[k],h=x.inc?S.senate[x.slot]:null,m=h||Object.assign(mem(x.party,P,35,true),{name:x.name,first:x.first,last:x.last});if(h)m.terms=(m.terms||1)+1;const nn=Object.assign(m,{cls:S.senate[i].cls});pend.senate.push([i,nn]);nsc[i]=nn;sen.push({name:nn.name,party:nn.party});x.won=1});sc.forEach((x,k)=>{if(k>=n)x.won=0;delete x.w});R.sen=sen;
+ const shr=S.provs.map(()=>S.parties.map(()=>0));spv.forEach((v,k)=>{sc.forEach(c0=>{if(shr[k])shr[k][c0.party]+=v[c0.ix]})});S.provs.forEach((p,k)=>{const t=shr[k].reduce((a,b)=>a+b,0)||1;p.shr=shr[k].map(x=>x/t)});
+ {const nat1=S.parties.map((_,i)=>shr.reduce((a,r)=>a+r[i],0)),tn=nat1.reduce((a,b)=>a+b,0)||1,now=nat1.map(x=>x/tn),prev=(S.camp.prev&&S.camp.prev.length==now.length)?S.camp.prev:S.parties.map(p=>p.pop/S.parties.reduce((a,q)=>a+q.pop,0)),loss=prev.map((x,i)=>Math.max(0,x-now[i])),gain=now.map((x,i)=>Math.max(0,x-prev[i])),G=gain.reduce((a,b)=>a+b,0)||1;
+  R.flow={prev,now,m:loss.map(l=>gain.map(g=>l*g/G)),stay:prev.map((x,i)=>Math.min(x,now[i])),turn:S.camp.lastTurn!=null?[S.camp.lastTurn,nat.bal/nat.reg]:null};S.camp.prev=now;S.camp.lastTurn=nat.bal/nat.reg}
  R.senRace=sc.slice(0,n+6).map((x,k)=>({name:x.name,first:x.first,last:x.last,party:x.party,votes:x.votes,won:k<n}));F.nat.sen.pv=spv;
- if(presYr){const pp=matrix(F.nat.pres,1),inc=S.con.presReelect>=S.pres.terms,cs=F.nat.pres,vp=matrix(F.nat.vp,1),vc=F.nat.vp,w=cs[0],w2=vc[0];F.nat.presPv=pp;F.nat.vpPv=vp;
+ if(presYr){setW(F.nat.pres,nw);setW(F.nat.vp,nw);const pp=matrix(F.nat.pres,1),inc=S.con.presReelect>=S.pres.terms,cs=F.nat.pres,vp=matrix(F.nat.vp,1),vc=F.nat.vp,w=cs[0],w2=vc[0];F.nat.presPv=pp;F.nat.vpPv=vp;
   cs.forEach((c,i)=>{c.won=i==0?1:0;delete c.w});vc.forEach((c,i)=>{c.won=i==0?1:0;delete c.w});R.cands=cs.map(c=>({...c}));R.win=0;R.vc=vc.map(c=>({...c}));R.vwin=0;R.vpw=R.vc[0];
   if(w.inc&&w.name==S.pres.name){S.pres.terms++;pend.pres=S.pres}else pend.pres=Object.assign(mem(w.party,P,40,true),{name:w.name,first:w.first,last:w.last});pend.vp=Object.assign(mem(w2.party,P,40,true),{name:w2.name,first:w2.first,last:w2.last});S.lastPresY=Y}
  F.nat.pl=S.plg.map((g,i)=>{ensureNominees(g,pend.pls[i]);return{name:g.name,kind:g.kind,party:g.party,nominees:g.nominees.map(x=>x.name),votes:plv[i],seats:pend.pls[i]}});F.nat.plPv=plpv;
  R.house=hc;R.senAll=tally(nsc).slice(0,P.length);R.pl=S.plg.map((g,i)=>({name:g.name,kind:g.kind,party:g.party,n:pend.pls[i],votes:plv[i],pct:plw[i]*100,seated:g.nominees.slice(0,pend.pls[i]).map(x=>x.name)}));
  F.pub=true;F.done=true;R.F=F;R.label=`${Y} ${presYr?'Presidential':'Midterm'} and Local Election`;S.elections.unshift(R);S.pend=pend;S.cands=null;
- S.inaug=dn(Y,5,30,S.y0);S.convene=openDay(Y,S.y0);S.next=elecDay(Y+S.con.houseTerm,S.y0);S.lastLocal=S.inaug;buildCal();
+ S.inaug=dn(Y,5,30,S.y0);S.convene=openDay(Y,S.y0);S.next=elecDay(Y+S.con.houseTerm,S.y0);S.lastLocal=S.inaug;buildCal();campReset();
  log(presYr?`${pend.pres.name} of ${P[pend.pres.party].name} wins the presidency. Winners take office on June 30.`:'Midterm results are in. Winners take office on June 30.')}
 function buildCal(){const E=S.next,B=S.nextB,ev=[],a=(d,key,label,basis)=>ev.push({d,key,label,basis});
  a(E-220,'file_open','Filing of certificates of candidacy opens (period fixed by COMELEC)','Sec. 7; Sec. 75');a(E-213,'file_close','Filing of certificates of candidacy closes; the lists of candidates are prepared','Sec. 75; Sec. 76');
@@ -131,16 +151,18 @@ function buildCal(){const E=S.next,B=S.nextB,ev=[],a=(d,key,label,basis)=>ev.pus
  a(E-135,'conv_nat','Party conventions for national positions may begin (within 45 days before the campaign period)','Sec. 80');a(E-130,'bft','The ballot face template for each locality is approved','Sec. 7');
  a(E-120,'cert','The certified list of candidates is finalized','Sec. 7');a(E-110,'print','Ballot printing begins','Sec. 7');
  a(E-90,'camp_nat','Election period begins; the campaign for President, Vice President, Senators, and party-list begins','Sec. 3; RA 7166 Sec. 5');a(E-75,'conv_loc','Party conventions for local positions may begin (within 30 days before the campaign period)','Sec. 80');
- a(E-45,'camp_loc','The campaign for House members and local officials begins','Sec. 3; RA 7166 Sec. 5');a(E-15,'disq1','Petitions to deny due course must be decided at least 15 days before election day','Sec. 78');
+ a(E-60,'debate_pres','Presidential and vice-presidential debates (COMELEC-organized)','Sec. 7');a(E-40,'debate_sen','Senatorial debates','Sec. 7');a(E-25,'debate_loc','Provincial gubernatorial debates','Sec. 7');a(E-45,'camp_loc','The campaign for House members and local officials begins','Sec. 3; RA 7166 Sec. 5');a(E-15,'disq1','Petitions to deny due course must be decided at least 15 days before election day','Sec. 78');
  a(E-10,'ballots','The number of ballots printed is published; statements of contributions and expenses may be filed (10 to 7 days before)','Sec. 59; Sec. 107');a(E-7,'disq2','Disqualification cases must be decided at least 7 days before election day; statements of contributions and expenses are due','Sec. 72; Sec. 107');
  a(E-1,'eve','The campaign ends; giving transportation, food, or drink is prohibited on the eve and on election day','Sec. 3; Sec. 89');a(E,'eday','Election day; canvass begins by 6 p.m.','Sec. 15; RA 7166 Sec. 3');
  a(E+3,'proc','Boards of canvassers proclaim the local winners','Omnibus Election Code, canvass provisions');a(E+14,'cong','Congress canvasses the presidential and vice-presidential votes (no later than 30 days after election day)','Sec. 16; Art. VII Sec. 4');
  a(E+30,'soce','The election period ends; supplemental statements of contributions and expenses and contributor reports are due','Sec. 3; Sec. 99; Sec. 107');a(E+180,'oath','Winners must take their oath within six months of proclamation','Sec. 11');
  a(B-90,'b_period','The election period for the barangay and SK elections begins','Sec. 3');a(B-60,'b_file_open','Filing of certificates of candidacy for barangay posts opens (period fixed by COMELEC)','Sec. 39; Sec. 7');a(B-53,'b_file_close','Filing for barangay posts closes','Sec. 39');
  a(B-15,'b_camp','The barangay campaign period begins','Sec. 3');a(B-10,'b_list','The consolidated list of candidates is posted and the board of election tellers is constituted at least 10 days before the election','Sec. 39; Sec. 40');a(B-7,'b_canv','The board of canvassers is constituted at least 7 days before the election','Sec. 46');a(B,'b_day','Barangay and SK election day (second Monday of November)','RA 12326');
- ev.sort((x,y)=>x.d-y.d);S.cal={E,B,ev};catchCal()}
+ ev.sort((x,y)=>x.d-y.d);
+ if(S.elections.length==0&&!S.cands&&E-220<S.dt+1&&E-90>S.dt+30){const m={file_open:1,file_close:20,petitions:24,tentative:26,conv_nat:28,bft:32,cert:34,print:36};ev.forEach(e=>{if(m[e.key]!=null)e.d=S.dt+m[e.key]});ev.sort((x,y)=>x.d-y.d)}
+ S.cal={E,B,ev};catchCal()}
 function catchCal(){if(!S.cal)return;S.cal.ev.forEach(e=>{if(e.d<S.dt)e.done=1});const fc=S.cal.ev.find(e=>e.key=='file_close'),tn=S.cal.ev.find(e=>e.key=='tentative');if(fc&&fc.d<=S.dt&&(!S.cands||S.cands.Y!=yr()))planRaces();if(tn&&tn.d<=S.dt&&S.cands)S.cands.pub=true;const bf=S.cal.ev.find(e=>e.key=='bft');if(bf&&bf.d<=S.dt&&S.cands)S.cands.bft=true}
-function calTick(){if(!S.cal||S.cal.E!=S.next||S.cal.B!=S.nextB)buildCal();S.cal.ev.forEach(e=>{if(e.d==S.dt&&!e.done){e.done=1;log('COMELEC calendar: '+e.label+'.');if(e.key=='file_close')planRaces();if(e.key=='tentative'&&S.cands)S.cands.pub=true;if(e.key=='bft'&&S.cands)S.cands.bft=true}})}
+function calTick(){if(!S.cal||S.cal.E!=S.next||S.cal.B!=S.nextB)buildCal();S.cal.ev.forEach(e=>{if(e.d==S.dt&&!e.done){e.done=1;log('COMELEC calendar: '+e.label+'.');if(e.key=='file_close')planRaces();if(e.key=='tentative'&&S.cands)S.cands.pub=true;if(e.key=='bft'&&S.cands)S.cands.bft=true;if(e.key=='debate_pres'||e.key=='debate_sen'||e.key=='debate_loc')runDebate(e.key.slice(7))}})}
 function inaugurate(){const p=S.pend;if(!p)return;
  p.provs.forEach((x,i)=>{const o=S.provs[i];if(o){Object.assign(o,x);hist(o,x.gov)}});p.munis.forEach((x,i)=>{const o=S.munis[i];if(o){Object.assign(o,x);hist(o,x.mayor)}});
  p.house.forEach(([i,n])=>{if(S.house[i]&&S.house[i].prov>=0)S.house[i]=n});p.senate.forEach(([i,n])=>{if(S.senate[i])S.senate[i]=n});rebuildPL(S,p.pls);
@@ -151,7 +173,7 @@ function migrate(s){if(s.cands===undefined)s.cands=null;s.enacted=s.enacted||[];
 function bske(){const P=S.parties,Y=yr(),R={id:S.elections.length+1,d:dstr(),bske:true,P:P.map(p=>({name:p.name,color:p.color})),pb:z(),kg:z(),sk:z()};
  S.munis.forEach(m=>m.brgy.forEach(b=>{const w=wt(m,-1),l=S.rules.brgyLimit;b.pb=re(b.pb,w,l);b.kag=b.kag.map(o=>re(o,w,l));b.sk=re(b.sk,w,S.rules.skLimit);R.pb[b.pb.party]++;b.kag.forEach(o=>R.kg[o.party]++);R.sk[b.sk.party]++}));
  R.label=`${Y} Barangay and SK Elections`;S.elections.unshift(R);S.nextB=bskeDay(Y+S.rules.brgyTerm,S.y0);log(`Barangay and Sangguniang Kabataan elections are held nationwide. Terms run ${S.rules.brgyTerm} years (RA 12326).`)}
-function monthly(){const s=S.stats;applyBudget(s);LAWS.forEach(l=>{if(S.laws[l[0]]!==false)for(const k in l[6])s[k]=(s[k]||0)+l[6][k]});s.treasury=+(s.treasury+(s.growth-4)*.03).toFixed(2);s.approval+=(rnd()-.5)*2+(s.growth-4)*.15-(s.corruption-40)*.01;s.growth+=(5-s.growth)*.08+(rnd()-.5)*.3;s.corruption+=(rnd()-.5)*1.2;s.order+=(68-s.order)*.05+(rnd()-.5);
+function monthly(){const s=S.stats;terrFx(s);campMonthly();applyBudget(s);LAWS.forEach(l=>{if(S.laws[l[0]]!==false)for(const k in l[6])s[k]=(s[k]||0)+l[6][k]});s.treasury=+(s.treasury+(s.growth-4)*.03).toFixed(2);s.approval+=(rnd()-.5)*2+(s.growth-4)*.15-(s.corruption-40)*.01;s.growth+=(5-s.growth)*.08+(rnd()-.5)*.3;s.corruption+=(rnd()-.5)*1.2;s.order+=(68-s.order)*.05+(rnd()-.5);
  s.poverty+=(rnd()-.52)*.3-(s.growth-4)*.05;['education','health','environment'].forEach(k=>s[k]+=(rnd()-.48)*.4);
  for(const k in s)s[k]=+cl(s[k],k=='treasury'||k=='growth'?-20:0,k=='treasury'?999:k=='growth'?20:100).toFixed(2)}
 
@@ -196,7 +218,7 @@ function gaaDraft(force){const Y=yr()+1;let t=`General Appropriations Act of FY 
 function budgetCheck(){const t=`General Appropriations Act of FY ${yr()}`,b=S.bills.find(x=>x.t==t);if(b&&b.st=='Law')return;S.stats.growth=cl(S.stats.growth-.2,-20,20);S.stats.approval=cl(S.stats.approval-1,0,100);log(`Congress did not pass the ${t}. The previous appropriations are re-enacted (Art. VI Sec. 25).`)}
 function yearly(){incomeYearly();S.justices.forEach(j=>{j.age=(j.age||60)+1;if(j.age>=70){const o=j.name;j.name=nm();j.age=48+Math.floor(rnd()*10);j.lean=+(rnd()*2-1).toFixed(1);log(`Justice ${o} reaches the mandatory retirement age of 70 (Art. VIII Sec. 11). The President appoints ${j.name} from the Judicial and Bar Council's list.`)}});
  S.bodies.forEach(b=>{if(yr()-(b.since||S.y0)>=7){const o=b.name;b.name=nm();b.since=yr();log(`${o}'s seven-year term ends at ${b.role}. ${caConfirm(b.name,b.role)}`)}})}
-function tick(){S.dt++;const sit0=()=>inSession();const dd=D(),mo=dd.getUTCMonth(),dm=dd.getUTCDate();
+function tick(){S.dt++;if(S.cands&&S.next-S.dt<=120&&S.next-S.dt>0&&S.dt%14==0)takePoll();const sit0=()=>inSession();const dd=D(),mo=dd.getUTCMonth(),dm=dd.getUTCDate();
  S.bills.forEach(b=>{if(b.mine)return;if(STN[b.st]&&rnd()<.04)act(b,false,true);else if(b.st=='Vetoed'&&!b.ov&&rnd()<.05)act(b,false,true)});
  if(rnd()<.012)draft();if(rnd()<.015)log(pick(E)[1](S));
  if(S.crisis>0){S.crisis--;S.house.concat(S.senate).forEach(m=>m.trust=cl(m.trust-(m.party==S.player.party?.02:.05),0,100))}
@@ -204,7 +226,7 @@ function tick(){S.dt++;const sit0=()=>inSession();const dd=D(),mo=dd.getUTCMonth
  if(dm==1)monthly();if(mo==0&&dm==1){budgetCheck();yearly()}if(mo==7&&dm==25)gaaDraft();
  plebs();S.ords.filter(o=>['Council','Executive','Vetoed','Review'].includes(o.st)).forEach(ordStep);if(rnd()<.05)ordAI();if(rnd()<.006&&sit0())localAI();
  calTick();if(S.dt==S.inaug)inaugurate();if(S.dt==openDay(yr(),S.y0))openSession();if(S.dt==S.next)elect();if(S.dt==S.nextB)bske();
- if(S.dt%60==0&&typeof autosave=='function')autosave()}
+ if(S.dt%180==0&&typeof autosave=='function')autosave()}
 
 function applyBudget(s){const b=S.budget;if(!b)return;let sp=0;b.lines.forEach(l=>{sp+=l.amt;const r=l.amt/Math.max(1,l.base);for(const k in l.fx)s[k]=(s[k]||0)+l.fx[k]*(r-1)});const rv=b.rev*(1+(s.growth-5)/100),nta=rv*S.rules.ira/100;s.treasury+=(rv-sp-nta)/12/1000}
 function localFx(a,k){k=k||1;if(a.fn&&k>0)a.fn.forEach(applyFn);if(a.reap!=null&&k>0){const p=S.provs[a.reap];if(p&&p.dprop){p.districts=p.dprop.map(d=>({n:d.n,munis:d.munis.slice()}));p.dist=p.districts.length;p.dprop=null;p.distStatus='enacted';syncGeo()}}if(a.loc!=null&&S.provs[a.loc]){const p=S.provs[a.loc];p.dev=cl((p.dev||50)+(a.dev||0)*k,0,100);if(k>0){p.laws=p.laws||[];p.laws.unshift(a.t);p.laws.length=Math.min(p.laws.length,6)}}
@@ -274,13 +296,14 @@ function fixProvDistricts(p){if(!p.pds||!p.pds.length){autoProv(p);return}p.pds.
  if(p.sp.some(m=>!p.pds.some(d=>d.n==m.pd)))assignSP(p)}
 function proposeDist(p){const t={mun:p.mun.slice()};autoDist(t,null,S);p.dprop=t.districts.map(d=>({n:d.n,munis:d.munis.slice()}));return p.dprop}
 function reapBill(p){if(!p.dprop)proposeDist(p);return makeBill({title:`Reapportionment of the legislative districts of ${p.name}`,arts:[{id:0,t:`Reapportion ${p.name} into ${p.dprop.length} legislative district(s)`,i:0,tags:['governance'],e:{},reap:p.id}],orig:'H',sp:{ch:'H',i:Math.max(0,S.house.findIndex(r=>r.prov==p.id))},mine:true})}
-function validateWorld(){const e=[],add=m=>e.length<60&&e.push(m);if(S.provs.length>MAX_PROVINCES)add(`There are more than ${MAX_PROVINCES} provinces.`);
+function validateWorld(){const bgc=S.munis.map(m=>m.brgy.map(()=>0));for(let i=0;i<W*H;i++){const m=S.map.mun[i];if(m>=0&&S.map.bg[i]>=0&&bgc[m]&&bgc[m][S.map.bg[i]]!==undefined)bgc[m][S.map.bg[i]]++}
+ const e=[],add=m=>e.length<60&&e.push(m);if(S.provs.length>MAX_PROVINCES)add(`There are more than ${MAX_PROVINCES} provinces.`);
  S.provs.forEach((p,i)=>{if(p.id!==i)add(`Province ${p.name} has a stale id.`);if(!S.regs[p.reg])add(`${p.name} has no valid region.`);if(p.capital!=null&&(!S.munis[p.capital]||S.munis[p.capital].prov!==i))add(`The capital of ${p.name} is not in the province.`);
   [['legislative',p.districts],['provincial',p.pds]].forEach(([k,L])=>{const seen=new Set();(L||[]).forEach(d=>d.munis.forEach(id=>{if(!S.munis[id]||S.munis[id].prov!==i)add(`A ${k} district of ${p.name} lists a municipality outside the province.`);if(seen.has(id))add(`A municipality is in two ${k} districts of ${p.name}.`);seen.add(id)}));p.mun.forEach(id=>{if(!seen.has(id)&&(k=='legislative'||eligPD(S,id)))add(`${S.munis[id].name} is in no ${k} district of ${p.name}.`)})});
   const hs=S.house.filter(r=>r.prov===i).length;if(hs!==(p.districts||[]).length)add(`${p.name} has ${hs} House seats for ${(p.districts||[]).length} legislative districts.`);
   if(p.pdAuto&&(p.districts||[]).length==1&&p.pds.length<2&&p.mun.length>1)add(`${p.name} has one legislative district and should have two provincial districts.`);
   if(!p.ic)add(`${p.name} has no income classification.`)});
- S.munis.forEach((m,i)=>{if(m.id!==i)add(`${m.name} has a stale id.`);if(!S.provs[m.prov])add(`${m.name} has no province.`);if(!m.ic)add(`${m.name} has no income classification.`);if(m.brgy.some(b=>b.ic))add(`${m.name} has a barangay with an income class; barangays are never classified.`)});
+ S.munis.forEach((m,i)=>{if(m.id!==i)add(`${m.name} has a stale id.`);if(!S.provs[m.prov])add(`${m.name} has no province.`);if(!m.ic)add(`${m.name} has no income classification.`);bgc[i]&&bgc[i].some(c=>!c)&&add(`${m.name} has a barangay with no area on the map.`);if(m.brgy.some(b=>b.ic))add(`${m.name} has a barangay with an income class; barangays are never classified.`)});
  S.regs.forEach(r=>{if(r.capital!=null&&!S.munis[r.capital])add(`The capital of ${r.name} does not exist.`)});if(S.nation.capital!=null&&!S.munis[S.nation.capital])add('The national capital does not exist.');
  return e}
 const provElectors=p=>Math.max(1,p.mun.reduce((a,id)=>{const m=S.munis[id];return a+(m&&!(m.huc||m.icc)?m.pop:0)},0));
@@ -333,3 +356,33 @@ function divideProv(id,name){const p=S.provs[id];if(!p||p.mun.length<2)return'A 
 function abolishProv(id){if(S.provs.length<2)return'The country needs at least one province.';const p=S.provs[id],C=centroids(S),n0=p.name;p.mun.slice().forEach(mid=>{let best=-1,bd=1e9;S.provs.forEach(q=>{if(q.id!=id&&q.mun.length){const d=(q.cx-C[mid][0])**2+(q.cy-C[mid][1])**2;if(d<bd){bd=d;best=q.id}}});S.munis[mid].prov=best;S.provs[best].pop+=S.munis[mid].pop});p.pop=0;syncGeo();if(!S.provs[id].mun.length)dropProv(id);syncGeo();pruneRegions();fixCaps();if(typeof sel!='undefined')sel={r:-1,p:-1,m:-1,b:-1};log(`${n0} Province is abolished and its cities and municipalities join neighboring provinces.`);return''}
 function recall(kind,id){const e=kind=='p'?S.provs[id]:S.munis[id],off=kind=='p'?e.gov:e.mayor;if(S.dt-(S.lastLocal||0)<365)return'A recall cannot be held within one year after the official took office (LGC Sec. 74).';if(S.next-S.dt<365)return'A recall cannot be held within one year before a regular election (LGC Sec. 74).';
  const p=cl(.25+(60-(e.dev||50))/100+(55-S.stats.approval)/200,.05,.9),yes=rnd()<p;log(`A recall election is held against ${off.name}: ${yes?'the official is recalled':'the official survives'} (LGC Secs. 69 to 75).`);if(yes){const n=person(e.lean,23);if(kind=='p')e.gov=n;else e.mayor=n;log(`${n.name} wins the recall election and takes over.`)}return''}
+
+const capParty=()=>S.munis.reduce((a,m)=>a+regV(m.pop),0)*5/1e6;
+const orgCost=p=>Math.max(.3,+(p.pop/100000*.25).toFixed(1));
+function campSpend(i,amt){const c=S.camp;if(c.funds[i]<amt)return'Not enough campaign funds.';if(c.spent[i]+amt>capParty())return'This would exceed the legal spending limit of PHP 5 per registered voter for a party (RA 7166 Sec. 13; confirm the current figure).';c.funds[i]-=amt;c.spent[i]+=amt;return''}
+function campMonthly(){const c=S.camp;if(!c)return;S.parties.forEach((p,i)=>{c.funds[i]=+(c.funds[i]+6+p.pop*20+rnd()*4).toFixed(1)});Object.keys(c.mom).forEach(k=>c.mom[k]*=.96);Object.keys(c.momP).forEach(k=>Object.keys(c.momP[k]).forEach(q=>c.momP[k][q]*=.96));
+ if(S.next-S.dt>270)return;S.parties.forEach((p,i)=>{if(i==S.player.party)return;if(c.funds[i]>12&&(c.media[i]||0)<8&&campSpend(i,3)==='')c.media[i]=(c.media[i]||0)+1;
+  const ps=S.provs.filter(q=>scopeF(i,q.id)>.01).map(q=>({q,sh:(q.shr&&q.shr[i])||q.lean[i],lv:(c.org[i]&&c.org[i][q.id])||0})).sort((a,b)=>Math.abs(a.sh-.25)-Math.abs(b.sh-.25)).slice(0,3);ps.forEach(x=>{if(x.lv<10&&campSpend(i,orgCost(x.q))==='')c.org[i][x.q.id]=x.lv+1})})}
+function campReset(){const c=S.camp;c.spent=c.spent.map(()=>0);c.media=c.media.map(x=>Math.floor((x||0)*.3));c.org=c.org.map(o=>{const n={};Object.keys(o).forEach(k=>{n[k]=Math.floor(o[k]/2)});return n});Object.keys(c.mom).forEach(k=>c.mom[k]*=.5);c.momP={};S.debateSkip={}}
+function takePoll(){const c=S.camp,P=S.parties,tot=S.provs.reduce((a,p)=>a+p.pop,0)||1,sh=P.map(()=>0);S.provs.forEach(p=>{const w=norm(wt(p,-1));w.forEach((x,i)=>sh[i]+=x*p.pop/tot)});
+ const pr=S.cands&&S.cands.nat.pres?(()=>{const nw=natW(),L=S.cands.nat.pres.map(x=>({name:x.name,party:x.party,w:nw[x.party]*(x.r||1)})),t=L.reduce((a,b)=>a+b.w,0)||1;return L.map(x=>({name:x.name,party:x.party,pct:Math.max(0,x.w/t*100+(rnd()-.5)*3)}))})():null;
+ c.polls.unshift({d:S.dt,shares:sh.map(x=>Math.max(0,x*100+(rnd()-.5)*3)),pres:pr,moe:2.5});c.polls.length=Math.min(c.polls.length,10)}
+function runDebate(kind){const F=S.cands;if(!F)return;const c=S.camp,res={d:S.dt,kind,rows:[],title:kind=='pres'?'Presidential and vice-presidential debate':kind=='sen'?'Senatorial debate':'Gubernatorial debates'};
+ const perf=(cd,cat)=>{if(cd.party==S.player.party&&S.debateSkip&&S.debateSkip[kind])return -1;if(cd.sk==null)cd.sk=+rnd().toFixed(2);return cd.sk+.04*Math.min(10,c.media[cd.party]||0)+(rnd()-.5)*.5};
+ const bump=(party,v,pid)=>{if(pid==null)c.mom[party]=cl((c.mom[party]||0)+v,-.3,.3);else{c.momP[pid]=c.momP[pid]||{};c.momP[pid][party]=cl((c.momP[pid][party]||0)+v,-.3,.3)}};
+ const run=(L,pid)=>{if(!L||L.length<2)return null;const sc=L.map(cd=>({cd,s:perf(cd)})).sort((a,b)=>b.s-a.s);sc.forEach((x,k)=>{bump(x.cd.party,k==0?.05:k==sc.length-1?-.02:.01,pid);if(x.s<0)bump(x.cd.party,-.04,pid)});return sc};
+ if(kind=='pres'){const a=run(F.nat.pres),b=run(F.nat.vp);[[a,'President'],[b,'Vice President']].forEach(([r,t])=>{if(r)res.rows.push({t,list:r.map(x=>({name:x.cd.name,party:x.cd.party,score:x.s}))})})}
+ else if(kind=='sen'){const sc=F.nat.sen.c.slice().sort((a,b)=>(b.r||1)-(a.r||1)).slice(0,12),r=run(sc);if(r)res.rows.push({t:'Senators',list:r.map(x=>({name:x.cd.name,party:x.cd.party,score:x.s}))})}
+ else{let pw=0;S.provs.forEach(p=>{const e=F.prov[p.id];if(!e)return;const r=run(e.gov,p.id);if(r&&r[0].cd.party==S.player.party)pw++});res.rows.push({t:'Governor races won by your party',list:[],note:pw+' of '+S.provs.length})}
+ c.debates.unshift(res);c.debates.length=Math.min(c.debates.length,12);const w=res.rows[0]&&res.rows[0].list[0];log(`${res.title}: ${w?w.name+' is judged to have performed best.':'held in every province.'}`)}
+function addParty(d){const P=S.parties,c=S.camp;P.push({name:d.name,acr:d.acr||'',color:d.color,ideo:d.ideo,pop:d.pop,scope:d.scope||'national',area:d.area,names:'',ni:0});const ext=e=>{const l=e.lean.slice();l.push((.4+rnd()*1.2)*d.pop);e.lean=norm(l);if(e.shr)e.shr.push(0)};S.provs.forEach(ext);S.munis.forEach(ext);c.funds.push(40);c.media.push(0);c.org.push({});c.spent.push(0);if(c.prev)c.prev.push(0);return P.length-1}
+function addBrgyVisible(mi){const m=S.munis[mi],cb=bgCells(m);let bi=-1,best=1;cb.forEach((c,i)=>{if(c.length>best){best=c.length;bi=i}});if(bi<0)return'There is no room on the map for another barangay. Barangays must have area on the map.';return bgDivide(mi,bi,null)}
+// ---- Article I: National Territory
+let ZC=null;
+function zoneData(){const M=S.map,c=S.con;if(ZC&&ZC.m===M&&ZC.a===c.archipelagic&&ZC.t===c.tsNm&&ZC.e===c.eezNm)return ZC;const N=W*H,d=new Int16Array(N).fill(-1),q=[];for(let i=0;i<N;i++)if(M.land[i]){d[i]=0;q.push(i)}
+ for(let h=0;h<q.length;h++){const i=q[h],x=i%W,y=i/W|0;[[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{const nx=x+dx,ny=y+dy;if(nx<0||ny<0||nx>=W||ny>=H)return;const j=ny*W+nx;if(d[j]<0){d[j]=Math.min(d[i]+1,200);q.push(j)}})}
+ const NM=5.3,iw=c.archipelagic?6:0,ts=iw+Math.ceil(c.tsNm/NM),ez=iw+Math.ceil(c.eezNm/NM),z=new Int8Array(N).fill(3);let land=0,a=0,b=0,e=0;
+ for(let i=0;i<N;i++){if(M.land[i]){z[i]=-1;land++;continue}const k=d[i];if(k>=0&&k<=iw){z[i]=0;a++}else if(k>=0&&k<=ts){z[i]=1;b++}else if(k>=0&&k<=ez){z[i]=2;e++}}
+ const K=98;ZC={m:M,a:c.archipelagic,t:c.tsNm,e:c.eezNm,z,area:{land:land*K,internal:a*K,territorial:b*K,eez:e*K}};return ZC}
+function territoryTotal(){const z=zoneData().area,o=(S.territory&&S.territory.other)||[];return{...z,other:o.reduce((a,t)=>a+(t.claim=='sovereignty'?1:.5)*(+t.km2||0),0),total:z.land+z.internal+z.territorial+o.reduce((a,t)=>a+(t.claim=='sovereignty'?1:.5)*(+t.km2||0),0)}}
+function terrFx(s){const z=zoneData().area;s.growth=cl(s.growth+cl((z.territorial+z.eez)/Math.max(1,z.land*4)-1,-1,1)*.02,-20,20)}

@@ -69,3 +69,15 @@ Limits: barangay and SK elections have a calendar and results counts but no cand
 ## Structure operations (Edit mode)
 
 On the Map tab, the Edit structure button (province, municipality, or barangay) offers divide, merge, abolish, and move. Each runs through a plebiscite unless you tick the scenario override. Tools: paint barangay boundary, new barangay, group barangays into a municipality or city, group municipalities into a province, group provinces into a region. Independent component cities are a flag on cities; their voters do not vote for provincial officials. Barangay and SK terms follow RA 12326 (five years, two consecutive terms for barangay officials, one for SK).
+
+## Campaign, competition, and voter behavior
+
+The Campaign tab covers party funds and the legal spending limit, organizers per province, advertising, surveys, electoral debates (with attend or skip choices), candidate selection for your party (President, Vice President, Senators, governors, vice governors), voter flow from the previous election, and regional versus national competition. Parties can be national, regional, or local; a regional or local party fields candidates only in its area. Candidate lists are created when filing closes and can be substituted until ballot printing begins. Candidate strength at the polls now includes party loyalty from the last election, campaign effort, and debate momentum.
+
+Limits: the spending limit figure (PHP 5 per registered voter for a party, RA 7166 Sec. 13) is from general knowledge; confirm it. There are no independent candidates outside party-list. Debate performance is a simple skill-plus-preparation score.
+
+## Maps and Article I
+
+The New world dialog offers a generated archipelago or the Philippines with 82 real province boundaries (rasterized to the game grid; populations and municipalities are simulated, province and region names are real). Every area now shows its name once, and place names are unique. Barangays must have area on the map: new barangays are carved from existing ones, and barangays that lose all their area are removed.
+
+Article I (National Territory) is modeled as land, internal waters (archipelagic doctrine), territorial sea, and exclusive economic zone. The widths and the doctrine are constitutional settings you can amend. The Territory map layer shows the zones, and other territories can be added with a sovereignty or jurisdiction claim.

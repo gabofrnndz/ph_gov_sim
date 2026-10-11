@@ -12,12 +12,12 @@ function hsl2rgb(h,s,l){const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;retu
 const regCol=r=>hsl2rgb((r*67+20)%360,.5,.58),pcol=p=>S.parties[p]?S.parties[p].color:'#888888';
 let BL=null,VIEW={x:0,y:0,w:W,h:H},BRG={};
 let GBASE=[];
-function mapKey(i){const M=S.map;if(!M.land[i])return -1;if(tool=='group')return M.mun[i]>=0?1000+M.mun[i]:-2;if(tool=='gbrg')return M.bg[i]>=0&&M.mun[i]>=0&&(sel.p<0||M.prov[i]==sel.p)?100000+GBASE[M.mun[i]]+M.bg[i]:-2;const p=M.prov[i];if(tool=='greg')return p>=0?p:-2;
+function mapKey(i){const M=S.map;if(!M.land[i]){if(layer=='terr'&&sel.p<0&&sel.r<0&&sel.m<0&&tool=='sel'){const z=zoneData().z[i];return z>=0&&z<=2?-10-z:-1}return -1}if(tool=='group')return M.mun[i]>=0?1000+M.mun[i]:-2;if(tool=='gbrg')return M.bg[i]>=0&&M.mun[i]>=0&&(sel.p<0||M.prov[i]==sel.p)?100000+GBASE[M.mun[i]]+M.bg[i]:-2;const p=M.prov[i];if(tool=='greg')return p>=0?p:-2;
  if(sel.m>=0&&S.munis[sel.m]){if(M.mun[i]==sel.m){const b=M.bg[i];return b>=0?5000+b:1000+sel.m}return p==sel.p?1000+M.mun[i]:-2}
  if(sel.p>=0)return p==sel.p?1000+M.mun[i]:-2;
  if(sel.r>=0)return p>=0&&S.provs[p]&&S.provs[p].reg==sel.r?p:-2;
  if(layer=='reg')return p>=0&&S.provs[p]?2000+S.provs[p].reg:-2;return p}
-function mapColor(k){if(k==-1)return[169,203,221];if(k==-2)return[205,211,206];
+function mapColor(k){if(k<=-10)return k==-10?[112,168,208]:k==-11?[146,193,226]:[186,216,238];if(k==-1)return[169,203,221];if(k==-2)return[205,211,206];
  if(k>=100000){const g=k-100000;let mi=GBASE.length-1;while(mi>0&&GBASE[mi]>g)mi--;const m=S.munis[mi],b=m&&m.brgy[g-GBASE[mi]];if(!b)return[200,200,200];if(grpB.includes(g))return[250,246,200];const c=hexRGB(pcol(b.pb.party)),t=((g*37)%7)/14;return c.map(v=>Math.min(255,v*(.8+t)))}
  if(k>=5000&&k<100000){const m=S.munis[sel.m],b=m&&m.brgy[k-5000];if(!b)return[200,200,200];const c=hexRGB(pcol(b.pb.party)),t=((k*37)%7)/14;return c.map(v=>Math.min(255,v*(.85+t)+(k-5000==sel.b?70:0)))}
  if(k>=2000){const c=regCol(k-2000);return k-2000==sel.r?c.map(v=>Math.min(255,v*1.15+25)):c}
@@ -39,13 +39,13 @@ function drawMap(cv){const ctx=cv.getContext('2d'),off=document.createElement('c
  if(showNames){const by=new Map();for(let i=0;i<W*H;i++){const k=keys[i];if(k>=0&&k<100000){let a=by.get(k);if(!a){a=[];by.set(k,a)}a.push(i)}}
   const C=sel.p>=0&&sel.m<0?null:null,nameOf=k=>{if(k>=5000){const m=S.munis[sel.m],b=m&&m.brgy[k-5000];return b?b.name:''}if(k>=2000){const r=S.regs[k-2000];return r?r.name.replace(/^Region \d+: /,''):''}if(k>=1000){const m=S.munis[k-1000];return m?(S.provs[m.prov]&&S.provs[m.prov].capital==m.id?'\u2605 ':'')+m.name:''}const p=S.provs[k];return p?p.name:''};
   const show=k=>{if(tool=='group'&&!(k>=1000&&grp.includes(k-1000)))return false;if(tool=='greg')return false;return true};
-  by.forEach((cells,k)=>{if(!show(k))return;const t=nameOf(k);if(!t)return;const n=cells.length,kk=Math.min(3,n<70?1:n<220?2:3),pts=cells.map(c=>[c%W,c/W|0]),sp=a=>Math.max(...a)-Math.min(...a),ax=sp(pts.map(p=>p[0]))>=sp(pts.map(p=>p[1]))?0:1,o=pts.map((p,i)=>i).sort((a,b)=>pts[a][ax]-pts[b][ax]);
+  by.forEach((cells,k)=>{if(!show(k))return;const t=nameOf(k);if(!t)return;const n=cells.length,kk=1,pts=cells.map(c=>[c%W,c/W|0]),sp=a=>Math.max(...a)-Math.min(...a),ax=sp(pts.map(p=>p[0]))>=sp(pts.map(p=>p[1]))?0:1,o=pts.map((p,i)=>i).sort((a,b)=>pts[a][ax]-pts[b][ax]);
    for(let g=0;g<kk;g++){const grp0=o.slice(Math.floor(g*n/kk),Math.floor((g+1)*n/kk));if(!grp0.length)continue;if(grp0.length*sc*sc<t.length*45)continue;const cx=grp0.reduce((a,i)=>a+pts[i][0],0)/grp0.length,cy=grp0.reduce((a,i)=>a+pts[i][1],0)/grp0.length;let b=grp0[0],bd=1e9;grp0.forEach(i=>{const d=(pts[i][0]-cx)**2+(pts[i][1]-cy)**2;if(d<bd){bd=d;b=i}});
     const X=(pts[b][0]+.5-VIEW.x)*sc,Y=(pts[b][1]+.5-VIEW.y)*sc;if(X<0||Y<0||X>cv.width||Y>cv.height)continue;ctx.strokeText(t,X,Y);ctx.fillText(t,X,Y)}})}}
 function cellAt(e){const cv=e.currentTarget||e.target,r=cv.getBoundingClientRect(),x=Math.floor(VIEW.x+(e.clientX-r.left)/r.width*VIEW.w),y=Math.floor(VIEW.y+(e.clientY-r.top)/r.height*VIEW.h);return x<0||y<0||x>=W||y>=H?-1:y*W+x}
 function paintAt(e){const i=cellAt(e),M=S.map,m=S.munis[sel.m];if(!m||i<0)return;if(tool=='paintb'){if(sel.b<0)return;const x0=i%W,y0=i/W|0;for(let dy=-brush;dy<=brush;dy++)for(let dx=-brush;dx<=brush;dx++){const x=x0+dx,y=y0+dy;if(x<0||y<0||x>=W||y>=H)continue;const j=y*W+x;if(M.mun[j]==sel.m&&dx*dx+dy*dy<=brush*brush)M.bg[j]=sel.b}drawMap($('#cv'));return}const x0=i%W,y0=i/W|0;for(let dy=-brush;dy<=brush;dy++)for(let dx=-brush;dx<=brush;dx++){const x=x0+dx,y=y0+dy;if(x<0||y<0||x>=W||y>=H)continue;const j=y*W+x;if(M.land[j]&&dx*dx+dy*dy<=brush*brush){M.mun[j]=sel.m;M.prov[j]=m.prov}}drawMap($('#cv'))}
 function mapClick(e){const M=S.map,i=cellAt(e);if(i<0||!M.land[i])return;const pv=M.prov[i],mu=M.mun[i];
- if(tool=='newm'){const p=S.provs[pv],id=S.munis.length,m={id,prov:p.id,name:place(),pop:10000,city:false,huc:false,lean:p.lean.slice(),hist:[],bn:8,dev:50};m.mayor=person(m.lean,21);m.vm=person(m.lean,21);m.sb=Array.from({length:8},()=>person(m.lean,18));m.exo=exo();brgys(m);m.ie=+(.6+rnd()*.9).toFixed(2);S.munis.push(m);
+ if(tool=='newm'){const p=S.provs[pv],id=S.munis.length,m={id,prov:p.id,name:placeU(),pop:10000,city:false,huc:false,lean:p.lean.slice(),hist:[],bn:8,dev:50};m.mayor=person(m.lean,21);m.vm=person(m.lean,21);m.sb=Array.from({length:8},()=>person(m.lean,18));m.exo=exo();brgys(m);m.ie=+(.6+rnd()*.9).toFixed(2);S.munis.push(m);
   const x0=i%W,y0=i/W|0;for(let dy=-3;dy<=3;dy++)for(let dx=-3;dx<=3;dx++){const x=x0+dx,y=y0+dy,j=y*W+x;if(x>=0&&y>=0&&x<W&&y<H&&M.land[j]&&M.prov[j]==p.id&&dx*dx+dy*dy<=9)M.mun[j]=id}
   m.incH=[incomeOf(m,'municipality')];reclassOne(m,'municipality');layoutBrgys(S,m);syncGeo();sel={r:p.reg,p:p.id,m:id,b:-1};tool='sel';render();return}
  if(tool=='newb'){if(mu>=0&&M.bg[i]!==undefined)bcreateDlg(mu,i);return}
