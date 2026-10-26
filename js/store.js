@@ -8,5 +8,5 @@ const listSlots=()=>tx('readonly',s=>s.getAll(IDBKeyRange.bound('m:','m:\uffff')
 const delSlot=n=>Promise.all([tx('readwrite',s=>s.delete('d:'+n)),tx('readwrite',s=>s.delete('m:'+n))]);
 const autosave=()=>{if(S)saveSlot('autosave').catch(()=>{})};
 function download(name,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:'application/json'}));a.download=name;a.click()}
-function imgToLand(file,thr,light){return new Promise(res=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');x.drawImage(im,0,0,W,H);
+function imgToLand(file,thr,light,gw,gh){gw=gw||W;gh=gh||H;return new Promise(res=>{const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=gw;c.height=gh;const x=c.getContext('2d');x.drawImage(im,0,0,gw,gh);
  const d=x.getImageData(0,0,W,H).data,land=new Uint8Array(W*H);for(let i=0;i<W*H;i++){const l=.3*d[i*4]+.59*d[i*4+1]+.11*d[i*4+2];if(d[i*4+3]>40&&(light?l>thr:l<thr))land[i]=1+Math.min(2,Math.floor((i/W|0)/(H/3)))}res(land)};im.src=URL.createObjectURL(file)})}
