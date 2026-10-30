@@ -13,7 +13,7 @@ const regCol=r=>hsl2rgb((r*67+20)%360,.5,.58),pcol=p=>S.parties[p]?S.parties[p].
 let BL=null,VIEW={x:0,y:0,w:W,h:H},BRG={};
 let GBASE=[];
 function mapKey(i){const M=S.map;if(!M.land[i]){if(layer=='terr'&&sel.p<0&&sel.r<0&&sel.m<0&&tool=='sel'){const z=zoneData().z[i];return z>=0&&z<=2?-10-z:-1}return -1}if(tool=='group')return M.mun[i]>=0?1000+M.mun[i]:-2;if(tool=='gbrg')return M.bg[i]>=0&&M.mun[i]>=0&&(sel.p<0||M.prov[i]==sel.p)?100000+GBASE[M.mun[i]]+M.bg[i]:-2;const p=M.prov[i];if(tool=='greg')return p>=0?p:-2;
- if(sel.m>=0&&S.munis[sel.m]){if(M.mun[i]==sel.m){const b=M.bg[i];return b>=0?5000+b:1000+sel.m}return p==sel.p?1000+M.mun[i]:-2}
+ if(sel.m>=0&&S.munis[sel.m]){if(M.mun[i]==sel.m){const b=M.bg[i];return b>=0?5000+b:1000+sel.m}return -1}
  if(sel.p>=0)return p==sel.p?1000+M.mun[i]:-2;
  if(sel.r>=0)return p>=0&&S.provs[p]&&S.provs[p].reg==sel.r?p:-2;
  if(layer=='reg')return p>=0&&S.provs[p]?2000+S.provs[p].reg:-2;return p}
