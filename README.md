@@ -104,3 +104,13 @@ The Constitution tab quotes Sections 1 to 28 and scores the simulated country ag
 - A province or city with one legislative district calls it a Lone District (LEGDIST, PROVDIST, or DIST in documents).
 - Cities can have council districts made of barangays. Large cities get several by default (population based), shown in the city panel, where you can set the number of districts. Council seats are shared equally and elected district by district; the Election files, ballot, and canvass follow the districts.
 - Election files follow the COMELEC samples: Certified/Tentative List of Candidates (national, provincial, municipal), Official Ballot (two pages), National Canvass Report, Provincial and Municipal/City Certificates of Canvass, Lists of Elected Candidates (House, provincial, city/municipal), and Voter Turnout. Provincial and municipal canvass figures for national posts are apportioned from province totals by valid votes, and the seals, hashes, and officer names are simulated.
+
+## Round 3 changes
+
+- Tentative/certified list numbering restarts at 1 for each position (it continues only when one position runs onto another page).
+- Municipal and city canvass certificates now include the Sangguniang Panlalawigan results of the provincial district (component municipalities only), with the House race(s) and local races. Figures for races above the municipal level are apportioned from the district or province totals.
+- Ballot face template: fixed colors (blue and green headers print with backgrounds), narrow bold type, registration marks, and its own style names so it no longer collides with the practice-ballot style.
+- New sidebar layout (collapses to a top bar on phones).
+- Up to 30 parties in the New world dialog (more can be added in game) and up to 150 party-list groups (extra groups get generated names).
+- Cities can have legislative districts of their own (default: one per 290,000 residents for cities of at least 250,000). Set the number in the city panel (Edit mode); extra districts are groups of barangays. Setting 0 returns the city to its province's districts.
+- Elections tab: set the date of the next general election (Edit mode, at least 45 days away). The calendar is rebuilt, and the schedule is compressed if the date is close.
