@@ -29,8 +29,11 @@ const nominee=()=>{const[f,l]=genName(NAMECTX);return{name:f+' '+l,first:f,last:
 function ensureNominees(g,n){g.nominees=g.nominees||[];while(g.nominees.length<Math.max(5,n||0))g.nominees.push(nominee())}
 function newPlg(s,name,sector,kind,pop){s=s||S;const P=s.parties,party=rnd()<.35?-1:sample(norm(P.map(p=>p.pop))),g={name,sector,kind,pop,party,bloc:party>=0?party:sample(norm(P.map(p=>p.pop))),region:kind=='regional'?Math.floor(rnd()*Math.max(1,s.regs?s.regs.length:6)):null,nominees:[]};ensureNominees(g,5);return g}
 function rebuildCmt(s){s=s||S;s.committees.forEach(c=>{const idx=s.house.map((_,i)=>i).sort(()=>rnd()-.5).slice(0,9);c.mem=idx;c.chair=idx[0]})}
-function autoElect(s,ri){const n=(s.regs[ri]&&/BARMM|Bangsamoro/.test(s.regs[ri].name))?80:50,ps=s.provs.filter(p=>p.reg==ri),w=ps.length?norm(s.parties.map((_,i)=>ps.reduce((a,p)=>a+p.lean[i],0))):norm(s.parties.map(p=>p.pop));
- const parl=Array.from({length:n},()=>mem(sample(w),s.parties)),c=tally(parl,s.parties.length),top=c.indexOf(Math.max(...c));s.autos=s.autos||{};s.autos[ri]={parl,cm:{name:parl.find(m=>m.party==top).name,party:top,terms:1}}}
+function autoElect(s,ri){const ps=s.provs.filter(p=>p.reg==ri),ids=ps.flatMap(p=>p.mun);if(!ids.length||!s.regs[ri])return;
+ const lean=ps.length?norm(s.parties.map((_,i)=>ps.reduce((a,p)=>a+p.lean[i],0))):norm(s.parties.map(p=>p.pop)),old=(s.autos&&s.autos[ri])||{},hd=ps.reduce((a,p)=>a+(p.districts||[]).length,0),k=Math.max(1,Math.min(24,old.k||Math.max(2,Math.min(12,hd||2)))),seats=Math.max(1,Math.min(10,old.seats||3)),C=centroids(s);
+ const rd=splitK(ids,Math.min(k,ids.length),C,s).map((m,i)=>({n:i+1,munis:m})),asm=[];rd.forEach(d=>{for(let j=0;j<seats;j++){const o=person(lean,25);o.d=d.n;asm.push(o)}});
+ s.autos=s.autos||{};s.autos[ri]={gov:person(lean,30),vgov:person(lean,30),asm,rd,k:rd.length,seats}}
+
 function brgName(m,i){const u=BU[m.prov]=BU[m.prov]||new Set(),mine=new Set((m.brgy||[]).map(b=>b.name));let n,t=0;do{n=rnd()<.4?pick(BNAMES):place();if(t>10&&u.has(n))n=n+' '+['I','II','III','Uno','Dos'][t%5];t++}while((u.has(n)||mine.has(n))&&t<60);u.add(n);return n}
 function mkBrgy(m,i){return{name:brgName(m,i),pb:person(m.lean),kag:Array.from({length:7},()=>person(m.lean)),sk:person(m.lean)}}
 function brgys(m){m.brgy=Array.from({length:m.bn},(_,i)=>mkBrgy(m,i))}
@@ -51,13 +54,13 @@ function genMap(N,custom,ph){
  return{land,prov,mun:new Int16Array(W*H).fill(-1),sites,w:W,h:H}}
 function fresh(o){o=Object.assign({N:24,seed:Date.now()%1e9,y0:2025,parties:PARTIES.map(p=>({...p})),land:null},o);
  if(!o.ph)setGrid(130,190);setSeed(o.seed);GEN=true;BASEY=o.y0;NMAP={};const parties=o.parties.map(p=>({...p})),map=genMap(o.N,o.land,o.ph),cen=[[65,38],[68,100],[60,150]];CTX=parties;
- USED=new Set(o.ph?PHMAP.provs.concat(PHMAP.mn):[]);NUSED=new Set();BU={};NAMECTX=null;const regs=o.ph?PHMAP.regs.map(n=>({name:n,auto:/BARMM/.test(n),rd:{name:nm(),party:-1}})):['Hilagang Isla','Gitnang Isla','Silangang Visaya','Kanlurang Visaya','Hilagang Mindanao','BARMM: Bangsamoro Autonomous Region'].map((n,i)=>({name:i<5?'Region '+(i+1)+': '+n:n,auto:i==5,rd:{name:nm(),party:-1}}));
+ USED=new Set(o.ph?PHMAP.provs.concat(PHMAP.mn):[]);NUSED=new Set();BU={};NAMECTX=null;const regs=o.ph?PHMAP.regs.map(n=>({name:n,auto:/ARMM/.test(n),rd:{name:nm(),party:-1}})):['Hilagang Isla','Gitnang Isla','Silangang Visaya','Kanlurang Visaya','Hilagang Mindanao','ARMM: Autonomous Region in Muslim Mindanao'].map((n,i)=>({name:i<5?'Region '+(i+1)+': '+n:n,auto:i==5,rd:{name:nm(),party:-1}}));
  const provs=[],munis=o.ph?new Array(PHMAP.mn.length):[],cells=map.sites.map(()=>[]);let mcount=null,phIdx=null;if(o.ph){mcount=new Int32Array(PHMAP.mn.length);map.mun.forEach(v=>{if(v>=0)mcount[v]++});phIdx=PHMAP.provs.map(()=>[]);PHMAP.mp.forEach((q,i)=>phIdx[q].push(i))}
  map.land.forEach((v,i)=>{if(v)cells[map.prov[i]].push(i)});
  map.sites.forEach((s,id)=>{
-  const g=Math.min(2,map.land[s[1]*W+s[0]]-1);let phm=null,pop;if(o.ph){const ppc=6600*(.6+rnd()*.8)*(PHMAP.provs[id]=='Metropolitan Manila'?10:1);phm=phIdx[id].map(i=>Math.max(5000,Math.min(2400000,Math.round(mcount[i]*ppc*(PHMAP.mc[i]?1.8:1)*(.7+rnd()*.6)))));pop=phm.reduce((a,b)=>a+b,0)}else pop=Math.round(120000+rnd()**2*2400000);
+  const g=Math.min(2,map.land[s[1]*W+s[0]]-1);let phm=null,pop;if(o.ph){const ppc=PHPOP*(PH_DENS[PHMAP.provs[id]]||1)*(.75+rnd()*.5);phm=phIdx[id].map(i=>Math.max(5000,Math.min(2400000,Math.round(mcount[i]*ppc*(PHMAP.mc[i]?1.8:1)*(.7+rnd()*.6)))));pop=phm.reduce((a,b)=>a+b,0)}else pop=Math.round(120000+rnd()**2*2400000);
   const cls=pop>1.7e6?1:pop>1.1e6?2:pop>7e5?3:pop>4e5?4:pop>2.2e5?5:6,dist=Math.max(1,Math.min(8,Math.round(pop/290000))),ln=lean(parties);
-  const p={id,name:o.ph?PHMAP.provs[id]:placeU(),pop,cls,dist,reg:o.ph?PHMAP.reg[id]:g*2+(s[0]>cen[g][0]?1:0),cx:s[0],cy:s[1],lean:ln,mun:[],hist:[]};
+  const p={id,name:o.ph?(PHMAP.provs[id]=='Metropolitan Manila'?'National Capital Region':PHMAP.provs[id]):placeU(),vp:!!(o.ph&&PHMAP.provs[id]=='Metropolitan Manila'),pop,cls,dist,reg:o.ph?PHMAP.reg[id]:g*2+(s[0]>cen[g][0]?1:0),cx:s[0],cy:s[1],lean:ln,mun:[],hist:[]};
   NAMECTX=flavorOf((regs[p.reg]||{}).name||'');p.gov=person(ln,23);p.vg=person(ln,23);p.sp=Array.from({length:dist>5?dist*2:cls<3?10:cls<5?8:6},()=>person(ln,18));
   p.exo=exo().concat([{name:nm(),party:-1,role:'League of Cities Council Presidents'},{name:nm(),party:-1,role:'League of Municipal Councilors President'}]);
   provs.push(p);
@@ -68,7 +71,7 @@ function fresh(o){o=Object.assign({N:24,seed:Date.now()%1e9,y0:2025,parties:PART
   cs.forEach(c=>{const x=c%W,y=c/W|0;let b=0,bd=1e9;ms.forEach((m,j)=>{const d=(m%W-x)**2+((m/W|0)-y)**2;if(d<bd){bd=d;b=j}});map.mun[c]=base+b;cnt[b]++});
   ms2=ms.map((c,j)=>({id:base+j,prov:id,name:placeU(),pop:Math.max(5000,Math.round(pop*cnt[j]/cs.length)),city:false,huc:false,lean:norm(ln.map(x=>x*(.6+rnd()*.8))),hist:[]}));
   const order=[...ms2].sort((a,b)=>b.pop-a.pop);if(rnd()<.7)order[0].city=true;if(order[1]&&rnd()<.35)order[1].city=true}
-  ms2.forEach(m=>{m.huc=m.city&&m.pop>=200000;m.icc=m.city&&!m.huc&&rnd()<.35;m.mayor=person(m.lean,m.city?23:21);m.vm=person(m.lean,m.city?23:21);m.sb=Array.from({length:m.huc?12:m.city?10:8},()=>person(m.lean,18));m.exo=exo();m.bn=m.city?20+Math.floor(rnd()*25):8+Math.floor(rnd()*20);if(o.ph)m.bn=Math.min(m.bn,mcount[m.id]);brgys(m);if(o.ph)munis[m.id]=m;else munis.push(m);p.mun.push(m.id)})});
+  ms2.forEach(m=>{m.huc=o.ph?PHMAP.mt[m.id]==3:m.city&&m.pop>=200000;m.icc=o.ph?PHMAP.mt[m.id]==2:m.city&&!m.huc&&rnd()<.35;if(o.ph){const dn=PH_DENS[PHMAP.provs[id]]||1;p.dev=Math.round(cl(36+16*Math.log2(Math.max(.2,dn))+(rnd()*8-4),12,92));m.dev=Math.round(cl(p.dev+(m.huc?16:m.city?8:0)+(rnd()*10-5),8,98));m.ie=+(PHIE*(.6+rnd()*.9)*Math.pow(m.dev/55,.7)*Math.pow((m.city?200000:60000)/Math.max(8000,m.pop),PHEXP)).toFixed(2);p.ie=+(PHIEP*(.6+rnd()*.9)*Math.pow(p.dev/55,.7)*Math.pow(1500000/Math.max(100000,p.pop),PHEXPP)).toFixed(2)}m.mayor=person(m.lean,m.city?23:21);m.vm=person(m.lean,m.city?23:21);m.sb=Array.from({length:m.huc?12:m.city?10:8},()=>person(m.lean,18));m.exo=exo();m.bn=m.city?20+Math.floor(rnd()*25):8+Math.floor(rnd()*20);if(o.ph)m.bn=Math.min(m.bn,mcount[m.id]);brgys(m);if(o.ph)munis[m.id]=m;else munis.push(m);p.mun.push(m.id)})});
  const pw=parties.map(p=>p.pop),con={...CON0};
  const plg=PLN.map(([name,sector,kind])=>newPlg({parties,regs},name,sector,kind,+(.04+rnd()*.14).toFixed(3)));{const want=Math.min(150,Math.max(PLN.length,o.plN||PLN.length)),un=new Set(plg.map(g=>g.name)),PA=['Bayanihan','Tinig','Sigla','Lingap','Lakas','Silangan','Kapit','Alab','Tugon','Dangal','Pag-asa','Pagkakaisa','Saligan','Unlad','Gabay','Haligi','Sandigan','Kalasag','Tanglaw','Kaagapay','Liwanag','Tulay','Pagsulong','Kabalikat'],PB=['ng Manggagawa','ng Magsasaka','ng Kabataan','ng Kababaihan','ng Mangingisda','ng Guro','ng Katutubo','ng Bayan','ng Maralita','ng Beterano','ng Komunidad','ng Kooperatiba','ng OFW','ng Drayber','ng Mamamayan','ng Maliliit na Negosyo'],SC=['Labor','Women','Farmers','Youth','Senior citizens','Overseas workers','Indigenous peoples','Fisherfolk','Teachers','Persons with disabilities','Urban poor','Transport','Health workers','Veterans','Small business','Cooperatives','Informal workers','Students'];for(let t=0;plg.length<want&&t<5000;t++){const nm=pick(PA)+' '+pick(PB);if(un.has(nm))continue;un.add(nm);plg.push(newPlg({parties,regs},nm,pick(SC),rnd()<.75?'sectoral':rnd()<.6?'national':'regional',+(.02+rnd()*.1).toFixed(3)))}}
  const st0={provs,munis,map};munis.forEach(m=>{m.ldk=(m.city&&m.pop>=250000)?Math.max(1,Math.round(m.pop/290000)):0});provs.forEach(p=>autoDist(p,null,st0));
@@ -80,7 +83,7 @@ function fresh(o){o=Object.assign({N:24,seed:Date.now()%1e9,y0:2025,parties:PART
   bodies:[['COMELEC',7],['Commission on Audit',3],['Civil Service Commission',3],['Commission on Human Rights',5],['Office of the Ombudsman',1]].flatMap(([b,n])=>Array.from({length:n},(_,i)=>({name:nm(),role:b+(i?', Commissioner':', Chair')}))),
   committees:CMT.map(([name,tag])=>({name,tag,mem:[],chair:0})),speaker:0,bills:[],nbid:1,crisis:0,next:elecDay(o.y0,o.y0),nextB:bskeDay(o.y0>2028?2028+Math.ceil((o.y0-2028)/5)*5:2028,o.y0),lastPresY:null,
   stats:{approval:56,growth:5.1,treasury:6,corruption:44,order:68,poverty:22,education:55,health:55,environment:50},news:[],elections:[]};
- initExtras(st);st.pres.terms=1;rebuildPL(st);rebuildCmt(st);st.autos={};st.regs.forEach((r,i)=>{if(r.auto)autoElect(st,i)});st.pend=null;st.inaug=null;st.convene=null;GEN=false;CTX=null;NAMECTX=null;st.nmap=NMAP;return st}
+ st.ph=!!o.ph;initExtras(st);st.pres.terms=1;rebuildPL(st);rebuildCmt(st);st.autos={};st.regs.forEach((r,i)=>{if(r.auto)autoElect(st,i)});st.pend=null;st.inaug=null;st.convene=null;GEN=false;CTX=null;NAMECTX=null;st.nmap=NMAP;return st}
 
 function initExtras(st){st.nation=st.nation||{name:'Republic of the Philippines',motto:'Maka-Diyos, Maka-tao, Makakalikasan at Makabansa',currency:'PHP'};
  initCampState(st);st.rules=Object.assign({brgyTerm:5,brgyLimit:2,skLimit:1,votingAge:18,quorum:50,attend:.93,sepDays:1,printDays:3,vetoDays:15,overrideLocal:66.7,reviewDays:30,ira:40,ratio:290000},st.rules||{});
@@ -101,7 +104,8 @@ function autoDist(p,k,s){s=s||S;const C=centroids(s),ids=p.mun.slice(),ratio=(s.
  const kr=k==null?(rest.length?Math.max(1,Math.round(R/ratio)):0):(rest.length?Math.max(1,k-ownDs.length):0);
  const ds=ownDs.concat(splitK(rest,kr,C,s).map(m=>({munis:m})));p.districts=ds.map((d,i)=>({...d,n:i+1}));p.dist=Math.max(1,p.districts.length)}
 function capitals(s){s=s||S;const big=ids=>ids.length?ids.reduce((b,id)=>s.munis[id].pop>s.munis[b].pop?id:b,ids[0]):null;s.provs.forEach(p=>{p.capital=big(p.mun)});s.regs.forEach((r,ri)=>{r.capital=big(s.provs.filter(p=>p.reg==ri).flatMap(p=>p.mun))});
- const ci=s.munis.filter(m=>m.city).map(m=>m.id);s.nation.capital=big(ci.length?ci:s.munis.map(m=>m.id))}
+ const ci=s.munis.filter(m=>m.city).map(m=>m.id);s.nation.capital=big(ci.length?ci:s.munis.map(m=>m.id));
+ if(s.ph&&typeof PHMAP!='undefined'){s.provs.forEach((p,i)=>{const c=PHMAP.cp[i];if(c>=0&&s.munis[c]&&s.munis[c].prov==p.id)p.capital=c});s.regs.forEach((r,i)=>{const c=PHMAP.rc[i];if(c>=0&&s.munis[c])r.capital=c});const mn=PHMAP.mn.indexOf('Manila');if(mn>=0&&s.munis[mn])s.nation.capital=mn}}
 
 function layoutBrgys(s,m,pre){const M=s.map,cells=pre||[];if(!pre)for(let i=0;i<W*H;i++)if(M.mun[i]==m.id)cells.push(i);if(!cells.length)return;const r=prng(hash(s.seed+':b'+m.id+':'+m.brgy.length)),n=Math.min(m.brgy.length,cells.length),sites=[];for(let j=0;j<n;j++)sites.push(cells[Math.floor(r()*cells.length)]);
  cells.forEach(c=>{const x=c%W,y=c/W|0;let b=0,bd=1e9;sites.forEach((q,j)=>{const d=(q%W-x)**2+((q/W|0)-y)**2;if(d<bd){bd=d;b=j}});M.bg[c]=b})}
@@ -114,7 +118,7 @@ function pruneBrgys(s){const M=s.map,cnt=s.munis.map(m=>m.brgy.map(()=>0));for(l
 function initCampState(st){const n=st.parties.length;st.camp=st.camp||{funds:[],media:[],org:[],spent:[],mom:{},momP:{},polls:[],debates:[],flow:null,prev:null};const c=st.camp;while(c.funds.length<n){const i=c.funds.length;c.funds.push(40+(st.parties[i]?st.parties[i].pop*80:0));c.media.push(0);c.org.push({});c.spent.push(0)}}
 
 let NUSED=new Set(),NAMECTX=null,BU={};
-const flavorOf=n=>{n=String(n||'');return /Cordillera/i.test(n)?'igorot':/Ilocos|Cagayan/i.test(n)?'ilocano':/Bicol/i.test(n)?'bicol':/BARMM|Bangsamoro|Muslim/i.test(n)?'muslim':/Visayas|Caraga|Davao|Mindanao|Zamboanga|SOCCSKSARGEN/i.test(n)?'visayan':/Central Luzon/i.test(n)?'kapampangan':null};
+const flavorOf=n=>{n=String(n||'');return /Cordillera/i.test(n)?'igorot':/Ilocos|Cagayan/i.test(n)?'ilocano':/Bicol/i.test(n)?'bicol':/ARMM|Muslim/i.test(n)?'muslim':/Visayas|Caraga|Davao|Mindanao|Zamboanga|SOCCSKSARGEN/i.test(n)?'visayan':/Central Luzon/i.test(n)?'kapampangan':null};
 function pickLast(fl){const x=fl&&LASTF[fl];if(x&&rnd()<.55)return pick(x);if(rnd()<.04)return pick(LASTF.chinese);return pick(LAST)}
 function genName(fl){for(let t=0;t<90;t++){const fem=rnd()<.5;let pool=fem?FF:FM;if(fl=='muslim'&&rnd()<.4)pool=fem?FFMUS:FMUS;let f=pick(pool);if(t>20&&rnd()<.6)f+=' '+pick(fem?FF:FM);const l=pickLast(fl),n=f+' '+l;if(!NUSED.has(n)){NUSED.add(n);return[f,l]}}
  const f=pick(FF.concat(FM)),l0=pickLast(fl);for(let k=0;k<12;k++){const l=l0+' '+['Jr.','II','III','IV','Sr.'][k%5]+(k>4?' '+(k+1):'');if(!NUSED.has(f+' '+l)){NUSED.add(f+' '+l);return[f,l]}}return[f,l0]}
