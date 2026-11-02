@@ -109,3 +109,17 @@ nav [data-tab=ov]::before{content:"◧"}nav [data-tab=mp]::before{content:"◈"}
 main{grid-area:main;max-width:1180px;width:100%;padding:20px 28px 48px;margin:0}
 .card{border-radius:14px}h2{border-left:0;padding-left:0;font-size:1.4rem}h2::after{content:"";display:block;width:44px;height:4px;border-radius:2px;background:var(--mango);margin-top:6px}
 @media(max-width:860px){body{grid-template-columns:minmax(0,1fr);grid-template-areas:"hdr" "nav" "ctl" "main"}nav{position:sticky;top:0;height:auto;flex-direction:row;overflow-x:auto;overflow-y:hidden;padding:6px 8px;gap:4px;z-index:7}nav::before{display:none}nav button{width:auto;white-space:nowrap;padding:8px 12px}nav button::before{display:none}header{padding:12px 14px}.ctl{padding:8px 12px;top:48px}main{padding:12px 12px 36px}}
+
+/* A4 documents, Legal ballots */
+.sheet{width:210mm;min-height:297mm;max-width:none;box-sizing:border-box;padding:12mm 13mm;page:a4}
+.sheet.bx{width:8.5in;min-height:13in;padding:.28in .4in;page:legal}
+.sheet.bx::before,.sheet.bx::after{top:.95in;bottom:.9in}
+.bxtitle{font-size:30px;font-weight:800;line-height:1.1}
+table.bxtb{width:100%;border-collapse:collapse;table-layout:fixed;border:3px solid #000;margin:6px 0 0}
+table.bxtb th.bxh{border:0;border-top:3px solid #000;padding:3px 4px;font-weight:700;display:table-cell}
+table.bxtb td{border-top:1.5px solid #000;border-left:3px solid #000;padding:2px 5px;height:30px;vertical-align:middle;font-size:9.5px;line-height:1.15;background:#fff}
+table.bxtb td:first-child{border-left:0}
+table.bxtb td .bxo{display:inline-block;vertical-align:middle;margin-right:3px}
+.bxn{font-weight:400}.bxtb small{font-weight:400}
+@page a4{size:A4;margin:0}@page legal{size:8.5in 13in;margin:0}
+@media print{#rp .sheet{padding:12mm 13mm;margin:0;box-shadow:none}#rp .sheet.bx{padding:.28in .4in}}
